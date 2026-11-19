@@ -23,8 +23,9 @@ Thay đổi máy chủ (`cmd/syncserver`, `cmd/proxyd`, `deploy/install.sh`) KH�
 người dùng phải chạy lại `install.sh` trên VPS.
 
 ## Sao lưu VPS
-- Timer `chrome-sync-backup` (03:00 mỗi đêm) chạy `/opt/chrome-sync/backup-to-gdrive.sh` (từ `vps/backup.sh`):
-  nén `data`, `env`, `vpn/proxies.json` → rclone `gdrive:QuanLyChrome-SaoLuu`, giữ 14 ngày.
+- Timer `chrome-sync-backup` (mỗi 10 phút) chạy `/opt/chrome-sync/backup-to-gdrive.sh` (từ `vps/backup.sh`):
+  chỉ khi dữ liệu đổi (tối đa 30 phút/bản), stream `tar` của `data`, `env`, `vpn/proxies.json`
+  thẳng lên rclone `gdrive:QuanLyChrome-SaoLuu` (không ghi file trên VPS), giữ 48 bản mới nhất.
   Không sao lưu tài khoản ExpressVPN (`vpn/creds.json`) — khôi phục xong người dùng nhập lại trong mục Proxy VPN.
 - Khôi phục (sau khi đã chạy install.sh trên VPS mới):
   `rclone copy gdrive:QuanLyChrome-SaoLuu/<file>.tar.gz /root/ && systemctl stop chrome-sync && tar xzf /root/<file>.tar.gz -C /opt/chrome-sync && chown -R chromesync:chromesync /opt/chrome-sync/data && systemctl start chrome-sync`
