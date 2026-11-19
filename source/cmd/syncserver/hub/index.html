@@ -39,12 +39,12 @@ input:focus { border-color: var(--accent); }
 #login h2 { margin: 0 0 4px; }
 .err { color: #ff9b98; min-height: 1em; font-size: 13px; }
 #kbd { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; resize: none; }
-#typebar { display: none; gap: 6px; padding: 8px; background: var(--panel); border-top: 1px solid var(--line); }
+#typebar { display: flex; align-items: center; gap: 6px; padding: 8px; background: var(--panel); border-top: 1px solid var(--line); }
+#typeTo { color: var(--muted); font-size: 12px; white-space: nowrap; flex-shrink: 0; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 800px) {
   #tabs { display: flex; }
   #grid { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; padding: 6px; }
   .panel:not(.active) { display: none; }
-  #typebar { display: flex; }
 }
 </style>
 </head>
@@ -70,7 +70,8 @@ input:focus { border-color: var(--accent); }
   <div id="tabs"></div>
   <div id="grid"></div>
   <div id="typebar">
-    <input id="typeIn" placeholder="Nhập tin rồi bấm Gửi">
+    <span id="typeTo"></span>
+    <input id="typeIn" placeholder="Gõ tin nhắn rồi bấm Enter để gửi" autocomplete="off">
     <button class="primary" id="typeSend">Gửi</button>
   </div>
 </div>
@@ -230,6 +231,8 @@ function renderPanels() {
     if (e.ph.dataset.html !== html) { e.ph.innerHTML = html; e.ph.dataset.html = html; }
     e.root.classList.toggle("active", p.id === active);
   });
+  const cur = panels.find((p) => p.id === active);
+  $("#typeTo").textContent = cur ? "Gửi vào: " + cur.name : "";
   $("#tabs").innerHTML = panels.map((p) => `<button data-tab="${p.id}" class="${p.id === active ? "on" : ""}">${escapeHTML(p.name)}${p.unread ? ` (${p.unread})` : ""}</button>`).join("");
 }
 
@@ -353,11 +356,12 @@ kbd.addEventListener("paste", (ev) => {
 // phone: type in the bar, then send (Enter)
 function sendTyped() {
   const v = $("#typeIn").value;
-  if (!active) return;
-  if (v) send({ t: "text", p: active, text: v });
+  if (!active || !v.trim()) return;
+  send({ t: "text", p: active, text: v });
   send({ t: "key", p: active, type: "keyDown", key: "Enter", code: "Enter", keyCode: 13, text: "\r" });
   send({ t: "key", p: active, type: "keyUp", key: "Enter", code: "Enter", keyCode: 13 });
   $("#typeIn").value = "";
+  $("#typeIn").focus();
 }
 $("#typeSend").onclick = sendTyped;
 $("#typeIn").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendTyped(); } });
