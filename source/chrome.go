@@ -303,6 +303,9 @@ func (m *Manager) Open(id string, force bool) error {
 		_ = os.Remove(devToolsPortFile(dir))
 		args = append(args, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1")
 	}
+	if err := setWebRTCPolicy(dir, p.Proxy.Enabled()); err != nil {
+		log.Printf("webrtc policy %s: %v", id, err)
+	}
 	var fwd *Forwarder
 	if p.Proxy.Enabled() {
 		var server string

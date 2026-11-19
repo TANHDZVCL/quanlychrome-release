@@ -50,7 +50,7 @@ func setupLog(dir string) {
 	log.Printf("===== khởi động %s =====", appVersion)
 }
 
-const appVersion = "3.2"
+const appVersion = "3.3"
 
 func main() {
 	cleanupAfterUpdate()

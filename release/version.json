@@ -1,1 +1,1 @@
-{"version": "3.2", "sha256": "574644ed2b7e85de9f29a853e246e34a2c8130ff4e4b576594069b7f1c62e222", "notes": "Xếp cửa sổ Chrome thành lưới; đồng bộ dữ liệu web (Zalo Web, Telegram Web…) sang máy khác.", "file": "ChromeManager.exe"}
+{"version": "3.3", "sha256": "f9ab1474024e86f02da6b965d3b765b8e0e627f1596a464bdb3df399bdaf6718", "notes": "SỬA LỖI QUAN TRỌNG: chặn WebRTC làm lộ IP thật khi dùng proxy (Chrome mới bỏ qua cách chặn cũ). Đóng và mở lại các hồ sơ đang mở.", "file": "ChromeManager.exe"}
