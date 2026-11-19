@@ -47,7 +47,8 @@ CHỨC NĂNG
   hồ sơ trên một máy, phần mềm mở sẵn trang tiện ích để bấm "Thêm vào Chrome"
   (Chrome không cho phần mềm khác cài ngầm). Danh sách tiện ích được đồng bộ.
 - Cờ quốc gia hiện cạnh proxy (theo quốc gia proxy VPN hoặc theo IP đã kiểm tra).
-- Cài đặt: chọn đường dẫn chrome.exe nếu phần mềm không tự tìm thấy.
+- Cài đặt: chọn đường dẫn chrome.exe nếu phần mềm không tự tìm thấy; chọn
+  ngôn ngữ Chrome (mặc định Tiếng Việt).
 
 ĐỒNG BỘ ONLINE (dùng chung trên nhiều máy)
 - Bấm nút "Đồng bộ" ở góc trên. Lần đầu: "Tạo mới" tài khoản (cần mã đăng ký

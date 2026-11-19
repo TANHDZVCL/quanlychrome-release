@@ -56,6 +56,9 @@ type Settings struct {
 	ChromePath string `json:"chromePath"`
 	// Let the same profile be open on several computers at once (sync only).
 	AllowMultiOpen bool `json:"allowMultiOpen"`
+	// Chrome UI/website language: "" or "vi" = Vietnamese, "en" = English,
+	// "system" = leave Chrome's default.
+	ChromeLang string `json:"chromeLang"`
 }
 
 type dbFile struct {

@@ -613,7 +613,11 @@ $("#formGroup").addEventListener("submit", async (e) => {
 $("#formSettings").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
-    await api("POST", "/api/settings", { chromePath: e.target.chromePath.value, allowMultiOpen: e.target.allowMultiOpen.checked });
+    await api("POST", "/api/settings", {
+      chromePath: e.target.chromePath.value,
+      allowMultiOpen: e.target.allowMultiOpen.checked,
+      chromeLang: e.target.chromeLang.value,
+    });
     toast("Đã lưu cài đặt", "ok");
     $("#dlgSettings").close();
     refresh();
@@ -624,6 +628,7 @@ function openSettings() {
   const f = $("#formSettings");
   f.chromePath.value = state.settings.chromePath || "";
   f.allowMultiOpen.checked = !!state.settings.allowMultiOpen;
+  f.chromeLang.value = state.settings.chromeLang || "vi";
   $("#setChrome").textContent = state.chromePath || "Không tìm thấy";
   $("#setData").textContent = state.dataDir;
   $("#setVersion").textContent = state.version || "—";

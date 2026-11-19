@@ -377,6 +377,12 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Không tìm thấy file: "+in.ChromePath)
 		return
 	}
+	switch in.ChromeLang {
+	case "", "vi", "en", "system":
+	default:
+		writeErr(w, 400, "ngôn ngữ không hợp lệ")
+		return
+	}
 	if err := s.store.SetSettings(in); err != nil {
 		writeErr(w, 500, err.Error())
 		return

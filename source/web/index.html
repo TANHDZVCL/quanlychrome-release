@@ -210,6 +210,14 @@
       <input name="chromePath" placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe">
     </label>
     <p class="muted small">Đang dùng: <code id="setChrome">—</code> · Phiên bản phần mềm: <b id="setVersion">—</b></p>
+    <label class="field">Ngôn ngữ Chrome (giao diện và ngôn ngữ ưu tiên của trang web)
+      <select name="chromeLang">
+        <option value="vi">🇻🇳 Tiếng Việt</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="system">Theo mặc định của Chrome</option>
+      </select>
+      <small>Hồ sơ đang mở cần đóng và mở lại để áp dụng.</small>
+    </label>
     <label class="checkline"><input type="checkbox" name="allowMultiOpen">
       <span><b>Cho phép mở cùng lúc trên nhiều máy</b><br>
       <span class="muted small">Khi bật, một hồ sơ đang mở ở máy khác vẫn mở được ở máy này; cookie của các máy được gộp lại. Lưu ý: Facebook/Google có thể bắt xác minh khi một phiên đăng nhập dùng ở nhiều nơi cùng lúc — nên dùng chung proxy.</span></span>

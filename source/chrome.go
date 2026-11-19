@@ -277,6 +277,7 @@ func (m *Manager) Open(id string, force bool) error {
 		"--window-name=" + p.Name,
 		"--enable-logging", // writes chrome_debug.log in the profile folder (for diagnosing)
 	}
+	args = append(args, langArgs(m.store.Settings().ChromeLang)...)
 	if syncOn {
 		// Local-only DevTools port, used to save/restore the login cookies.
 		_ = os.Remove(devToolsPortFile(dir))
@@ -653,4 +654,16 @@ func (m *Manager) Clone(srcID string, names []string, group string, copyProxy bo
 	}
 	log.Printf("nhân bản %s thành %d hồ sơ (%d tiện ích)", srcID, len(made), len(exts))
 	return made, nil
+}
+
+// langArgs sets Chrome's interface language and the languages websites see.
+func langArgs(lang string) []string {
+	switch lang {
+	case "system":
+		return nil
+	case "en":
+		return []string{"--lang=en-US", "--accept-lang=en-US,en"}
+	default: // Vietnamese
+		return []string{"--lang=vi", "--accept-lang=vi-VN,vi,en-US,en"}
+	}
 }
