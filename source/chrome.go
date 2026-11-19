@@ -45,6 +45,7 @@ func NewManager(s *Store, sy *Syncer) *Manager {
 	m.reattach()
 	go m.watch()
 	go m.uploadMissing()
+	go m.maintenance()
 	return m
 }
 
@@ -217,6 +218,9 @@ func (m *Manager) Open(id string, force bool) error {
 	p, ok := m.store.Get(id)
 	if !ok {
 		return errors.New("không tìm thấy hồ sơ")
+	}
+	if p.TrashedAt != nil {
+		return errors.New("hồ sơ đang ở thùng rác — hãy khôi phục trước")
 	}
 	for i := 0; i < 60; i++ { // a background save may be using the profile
 		m.mu.Lock()

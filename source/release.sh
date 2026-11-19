@@ -25,6 +25,21 @@ python3 -c "
 import json,sys
 json.dump({'version':sys.argv[1],'sha256':sys.argv[2],'notes':sys.argv[3],'file':'ChromeManager.exe'}, open(sys.argv[4],'w'), ensure_ascii=False)
 " "$VER" "$SHA" "$NOTES" "$REPO/release/version.json"
+# server programs: published only when they changed
+mkdir -p "$REPO/release/server"
+for b in syncserver proxyd; do
+  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o "$REPO/release/server/$b.tmp" "./cmd/$b"
+done
+S1="$(sha256sum "$REPO/release/server/syncserver.tmp" | cut -d' ' -f1)"
+S2="$(sha256sum "$REPO/release/server/proxyd.tmp" | cut -d' ' -f1)"
+if [ -f "$REPO/release/server.json" ] && grep -q "$S1" "$REPO/release/server.json" && grep -q "$S2" "$REPO/release/server.json"; then
+  rm -f "$REPO/release/server/"*.tmp
+else
+  mv -f "$REPO/release/server/syncserver.tmp" "$REPO/release/server/syncserver"
+  mv -f "$REPO/release/server/proxyd.tmp" "$REPO/release/server/proxyd"
+  printf '{"version": "%s", "syncserver": "%s", "proxyd": "%s"}\n' "$VER" "$S1" "$S2" > "$REPO/release/server.json"
+  echo "Máy chủ có thay đổi -> phát hành server $VER"
+fi
 # sync source (without build outputs)
 rm -rf "$REPO/source" && mkdir -p "$REPO/source"
 tar cf - --exclude=./dist --exclude=./build --exclude='*.zip' \

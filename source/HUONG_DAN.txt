@@ -49,6 +49,14 @@ CHỨC NĂNG
 - Dung lượng: cột "Dung lượng" cho biết mỗi hồ sơ chiếm bao nhiêu trên máy này.
   Chọn hồ sơ -> "Dọn bộ nhớ đệm" để xóa ảnh/file tạm (KHÔNG đăng xuất).
   Cài đặt -> "Giới hạn bộ nhớ đệm" (mặc định 200 MB/hồ sơ).
+- Thùng rác 🗑: xóa hồ sơ là chuyển vào thùng rác, khôi phục được trong 7 ngày
+  (kể cả đăng nhập), sau đó tự xóa vĩnh viễn.
+- Tài khoản 🔑: lưu UID, email, mật khẩu, mã 2FA cho từng hồ sơ (mã hóa, đồng bộ);
+  bấm 🔑 để copy nhanh và xem mã 2FA 6 số.
+- Proxy được tự kiểm tra mỗi 3 giờ; proxy lỗi hiện cảnh báo đỏ (lọc "⚠ Proxy lỗi").
+  Proxy VPN mất kết nối quá 10 phút sẽ được VPS tự khởi động lại.
+- Ghim ☆/★ để đưa hồ sơ lên đầu; ô "Sắp xếp" theo tên, mở gần nhất, nhóm, dung lượng.
+- Nhắc gia hạn VPS trước 7 ngày (Cài đặt -> Ngày hết hạn VPS).
 - Cờ quốc gia hiện cạnh proxy (theo quốc gia proxy VPN hoặc theo IP đã kiểm tra).
 - Cài đặt: chọn đường dẫn chrome.exe nếu phần mềm không tự tìm thấy; chọn
   ngôn ngữ Chrome (mặc định Tiếng Việt).

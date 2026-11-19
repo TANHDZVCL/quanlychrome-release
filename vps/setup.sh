@@ -26,11 +26,11 @@ ExecStart=$DIR/update-from-github.sh
 UNIT
 cat > /etc/systemd/system/chrome-sync-update.timer <<UNIT
 [Unit]
-Description=Quan ly Chrome - kiem tra ban moi moi 10 phut
+Description=Quan ly Chrome - kiem tra ban moi moi 5 phut
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=10min
+OnUnitActiveSec=5min
 
 [Install]
 WantedBy=timers.target
@@ -40,7 +40,7 @@ systemctl enable --now chrome-sync-update.timer >/dev/null
 if "$DIR/update-from-github.sh"; then
   echo
   echo "==================== XONG ===================="
-  echo " VPS sẽ tự lấy bản mới từ GitHub mỗi 10 phút."
+  echo " VPS sẽ tự lấy bản mới (phần mềm + máy chủ) từ GitHub mỗi 5 phút."
   echo " Bản hiện tại: $(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' $DIR/download/version.json)"
   echo "=============================================="
 else

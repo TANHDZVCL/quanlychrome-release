@@ -97,6 +97,7 @@ func main() {
 	_ = readJSON(filepath.Join(d.dir, "proxies.json"), &d.proxies)
 	_ = readJSON(filepath.Join(d.dir, "creds.json"), &d.creds)
 	log.Printf("proxyd on %s, %d proxies", *addr, len(d.proxies))
+	go d.watchdog()
 	srv := &http.Server{Addr: *addr, Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second}
 	log.Fatal(srv.ListenAndServe())
 }
@@ -445,4 +446,40 @@ func (d *daemon) logs(w http.ResponseWriter, r *http.Request) {
 	}
 	out, _ := docker("logs", "--tail", "40", prefix+id)
 	reply(w, 200, map[string]string{"logs": reSecret.ReplaceAllString(out, "$1=***")})
+}
+
+// watchdog restarts proxies whose VPN has been unhealthy for ~10 minutes, or
+// whose container disappeared/stopped.
+func (d *daemon) watchdog() {
+	bad := map[string]int{}
+	for {
+		time.Sleep(5 * time.Minute)
+		if !dockerOK() {
+			continue
+		}
+		states := containerStates()
+		d.mu.Lock()
+		ps := slices.Clone(d.proxies)
+		d.mu.Unlock()
+		for _, p := range ps {
+			st := states[p.ID]
+			switch {
+			case st == "" || strings.HasPrefix(st, "Exited") || strings.HasPrefix(st, "Created"):
+				log.Printf("watchdog: %s (%s) không chạy (%q) → khởi động lại", p.ID, p.Country, st)
+				d.mu.Lock()
+				_ = d.start(p)
+				d.mu.Unlock()
+				bad[p.ID] = 0
+			case strings.Contains(st, "unhealthy"):
+				bad[p.ID]++
+				if bad[p.ID] >= 2 {
+					log.Printf("watchdog: %s (%s) mất kết nối VPN → khởi động lại", p.ID, p.Country)
+					_, _ = docker("restart", prefix+p.ID)
+					bad[p.ID] = 0
+				}
+			default:
+				bad[p.ID] = 0
+			}
+		}
+	}
 }

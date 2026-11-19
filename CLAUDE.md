@@ -19,8 +19,13 @@ Giao tiếp với người dùng bằng tiếng Việt, từng bước đơn gi�
    — ghi version.json SAU CÙNG; sha256 phải khớp, nếu không VPS sẽ từ chối.
 6. Commit + push lên `main`. Không cần người dùng làm gì thêm.
 
-Thay đổi máy chủ (`cmd/syncserver`, `cmd/proxyd`, `deploy/install.sh`) KHÔNG tự cập nhật:
-người dùng phải chạy lại `install.sh` trên VPS.
+Cách nhanh: trong `source/` chạy `./release.sh X.Y "ghi chú"` (sửa đường dẫn REPO trong script nếu cần).
+
+Máy chủ: `release/server/{syncserver,proxyd}` + `release/server.json` (sha256 từng file). VPS
+(`vps/update.sh`, timer 5 phút) tự cập nhật chính script, tải server mới khi server.json đổi,
+kiểm tra sha256 rồi `systemctl restart chrome-sync` / `chrome-sync-proxyd`.
+Riêng `deploy/install.sh` (systemd unit, nginx, docker) KHÔNG tự chạy lại — nếu đổi unit/cờ
+khởi động thì người dùng phải chạy lại install.sh.
 
 ## Sao lưu VPS
 - Timer `chrome-sync-backup` (mỗi 10 phút) chạy `/opt/chrome-sync/backup-to-gdrive.sh` (từ `vps/backup.sh`):

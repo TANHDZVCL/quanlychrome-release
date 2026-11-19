@@ -41,6 +41,11 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("PUT /api/profiles/{id}", s.update)
 	api.HandleFunc("POST /api/delete", s.delete)
 	api.HandleFunc("POST /api/clone", s.clone)
+	api.HandleFunc("POST /api/restore", s.restore)
+	api.HandleFunc("POST /api/pin", s.pin)
+	api.HandleFunc("POST /api/meta", s.saveMeta)
+	api.HandleFunc("GET /api/totp/{id}", s.totp)
+	api.HandleFunc("POST /api/proxy/check-all", s.checkAll)
 	api.HandleFunc("POST /api/clear-cache", s.clearCache)
 	api.HandleFunc("POST /api/open", s.open)
 	api.HandleFunc("POST /api/close", s.close)
@@ -103,6 +108,8 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 		"sync":       s.sync.Status(),
 		"sizes":      profileSizes.Get(),
 		"version":    appVersion,
+		"meta":       s.store.Meta(),
+		"health":     health.For(ps),
 	})
 }
 
@@ -114,6 +121,19 @@ type profileInput struct {
 	Proxy      Proxy    `json:"proxy"`
 	Count      int      `json:"count"`
 	Extensions []string `json:"extensions"`
+	Account    *Account `json:"account"`
+}
+
+func cleanAccount(a *Account) *Account {
+	if a == nil {
+		return nil
+	}
+	c := &Account{UID: strings.TrimSpace(a.UID), Email: strings.TrimSpace(a.Email), Password: a.Password,
+		TwoFA: strings.TrimSpace(a.TwoFA), Extra: a.Extra}
+	if c.empty() {
+		return nil
+	}
+	return c
 }
 
 func cleanProxy(p Proxy) (Proxy, error) {
@@ -166,6 +186,9 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 			StartURL: strings.TrimSpace(in.StartURL), Proxy: px, CreatedAt: now,
 			Extensions: validExtIDs(in.Extensions),
 		})
+		if in.Count == 1 {
+			ps[len(ps)-1].Account = cleanAccount(in.Account)
+		}
 	}
 	if err := s.store.Add(ps); err != nil {
 		writeErr(w, 500, err.Error())
@@ -196,6 +219,9 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 		if in.Extensions != nil {
 			p.Extensions = validExtIDs(in.Extensions)
 		}
+		if in.Account != nil { // absent = keep; {} = clear
+			p.Account = cleanAccount(in.Account)
+		}
 	})
 	if err != nil {
 		writeErr(w, 404, err.Error())
@@ -208,8 +234,13 @@ type idsInput struct {
 	IDs []string `json:"ids"`
 }
 
+// delete moves profiles to the trash, or deletes them for good when
+// permanent is set (used from the trash).
 func (s *Server) delete(w http.ResponseWriter, r *http.Request) {
-	var in idsInput
+	var in struct {
+		IDs       []string `json:"ids"`
+		Permanent bool     `json:"permanent"`
+	}
 	if err := readJSON(r, &in); err != nil || len(in.IDs) == 0 {
 		writeErr(w, 400, "Chưa chọn hồ sơ")
 		return
@@ -220,6 +251,14 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, 409, "Hãy đóng Chrome của hồ sơ \""+p.Name+"\" trước khi xóa")
 			return
 		}
+	}
+	if !in.Permanent {
+		if err := s.store.SetTrashed(in.IDs, true); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]any{"trashed": len(in.IDs)})
+		return
 	}
 	if err := s.store.Delete(in.IDs); err != nil {
 		writeErr(w, 500, err.Error())
@@ -321,7 +360,11 @@ func (s *Server) checkProxy(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, ProxyCheck{Error: err.Error()})
 		return
 	}
-	writeJSON(w, CheckProxy(px))
+	c := CheckProxy(px)
+	if in.ID != "" {
+		health.Set(in.ID, px, c)
+	}
+	writeJSON(w, c)
 }
 
 func (s *Server) assignProxies(w http.ResponseWriter, r *http.Request) {
@@ -617,4 +660,71 @@ func (s *Server) clearCache(w http.ResponseWriter, r *http.Request) {
 		done++
 	}
 	writeJSON(w, map[string]any{"cleared": done, "skipped": skipped, "freed": freed})
+}
+
+func (s *Server) restore(w http.ResponseWriter, r *http.Request) {
+	var in idsInput
+	if err := readJSON(r, &in); err != nil || len(in.IDs) == 0 {
+		writeErr(w, 400, "Chưa chọn hồ sơ")
+		return
+	}
+	if err := s.store.SetTrashed(in.IDs, false); err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"restored": len(in.IDs)})
+}
+
+func (s *Server) pin(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		IDs    []string `json:"ids"`
+		Pinned bool     `json:"pinned"`
+	}
+	if err := readJSON(r, &in); err != nil || len(in.IDs) == 0 {
+		writeErr(w, 400, "Chưa chọn hồ sơ")
+		return
+	}
+	for _, id := range in.IDs {
+		if _, err := s.store.Update(id, func(p *Profile) { p.Pinned = in.Pinned }); err != nil {
+			writeErr(w, 404, err.Error())
+			return
+		}
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+func (s *Server) saveMeta(w http.ResponseWriter, r *http.Request) {
+	var in SharedMeta
+	if err := readJSON(r, &in); err != nil {
+		writeErr(w, 400, "dữ liệu không hợp lệ")
+		return
+	}
+	if _, err := time.Parse("2006-01-02", in.VPSExpiry); err != nil {
+		writeErr(w, 400, "Ngày không hợp lệ")
+		return
+	}
+	if err := s.store.SetMeta(in); err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+func (s *Server) totp(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.store.Get(r.PathValue("id"))
+	if !ok || p.Account == nil {
+		writeErr(w, 404, "hồ sơ chưa có mã 2FA")
+		return
+	}
+	code, left, err := totpCode(p.Account.TwoFA, time.Now())
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"code": code, "remaining": left})
+}
+
+func (s *Server) checkAll(w http.ResponseWriter, r *http.Request) {
+	go s.mgr.CheckAll()
+	writeJSON(w, map[string]any{"ok": true})
 }

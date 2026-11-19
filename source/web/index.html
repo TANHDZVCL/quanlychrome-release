@@ -29,6 +29,7 @@
   </button>
 </header>
 
+<div id="vpsWarn" class="banner" hidden></div>
 <div id="chromeWarn" class="banner" hidden>
   Không tìm thấy Google Chrome trên máy. Hãy cài Chrome hoặc vào <a href="#" id="warnSettings">Cài đặt</a> để chọn file <code>chrome.exe</code>.
 </div>
@@ -43,8 +44,17 @@
     <option value="">Mọi trạng thái</option>
     <option value="on">Đang mở</option>
     <option value="off">Đã đóng</option>
+    <option value="bad">⚠ Proxy lỗi</option>
+  </select>
+  <select id="fSort" title="Sắp xếp">
+    <option value="">Sắp xếp: mặc định</option>
+    <option value="name">Tên A → Z</option>
+    <option value="recent">Mở gần nhất</option>
+    <option value="group">Theo nhóm</option>
+    <option value="size">Dung lượng lớn nhất</option>
   </select>
   <div class="spacer"></div>
+  <button class="btn ghost" id="btnTrash" title="Hồ sơ đã xóa (khôi phục trong 7 ngày)">🗑 <span id="trashCount">0</span></button>
   <button class="btn" id="btnVpn" title="Tạo proxy từ ExpressVPN trên VPS">
     <svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6Z"/></svg>Proxy VPN</button>
   <button class="btn primary" id="btnNew"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Tạo hồ sơ</button>
@@ -113,6 +123,17 @@
     </label>
 
     <fieldset class="proxybox">
+      <legend>Thông tin tài khoản (mã hóa, đồng bộ mọi máy)</legend>
+      <div class="grid2">
+        <label class="field">UID / tên đăng nhập <input name="auid" autocomplete="off"></label>
+        <label class="field">Email / SĐT <input name="aemail" autocomplete="off"></label>
+        <label class="field">Mật khẩu <input name="apass" type="password" autocomplete="new-password"></label>
+        <label class="field">Mã 2FA (chuỗi bí mật) <input name="a2fa" autocomplete="off" placeholder="VD: ABCD EFGH IJKL MNOP"></label>
+      </div>
+      <label class="field">Thông tin thêm <textarea name="aextra" rows="2" placeholder="Mã khôi phục, ngày sinh, câu hỏi bảo mật…"></textarea></label>
+    </fieldset>
+
+    <fieldset class="proxybox">
       <legend>Proxy</legend>
       <label class="field" id="pfVpnField" hidden>Chọn proxy VPN có sẵn
         <select id="pfVpn"><option value="">— Chọn —</option></select>
@@ -147,6 +168,46 @@
   </form>
 </dialog>
 <datalist id="groupList"></datalist>
+
+<!-- Trash -->
+<dialog id="dlgTrash" class="modal">
+  <form method="dialog">
+    <h2>Thùng rác</h2>
+    <p class="muted small">Hồ sơ đã xóa được giữ 7 ngày (cả đăng nhập), sau đó tự xóa vĩnh viễn.</p>
+    <div class="tablewrap mini">
+      <table>
+        <thead><tr><th class="c-check"><input type="checkbox" id="trAll"></th><th>Hồ sơ</th><th>Đã xóa</th><th>Tự xóa sau</th></tr></thead>
+        <tbody id="trRows"></tbody>
+      </table>
+      <div class="empty small" id="trEmpty">Thùng rác trống.</div>
+    </div>
+    <div class="actions spread">
+      <span>
+        <button type="button" class="btn success" id="trRestore">Khôi phục</button>
+        <button type="button" class="btn danger" id="trDelete">Xóa vĩnh viễn</button>
+      </span>
+      <button type="button" class="btn ghost" data-close>Đóng</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Account quick view -->
+<dialog id="dlgAcc" class="modal small">
+  <form method="dialog">
+    <h2 id="acTitle">Tài khoản</h2>
+    <div id="acRows" class="acrows"></div>
+    <div id="acTotp" class="totp" hidden>
+      <div class="muted small">Mã 2FA</div>
+      <div class="totprow"><span id="acCode">------</span><button type="button" class="btn sm" id="acCopyCode">Copy</button></div>
+      <div class="totpbar"><div id="acBar"></div></div>
+    </div>
+    <p class="formerr" id="acErr"></p>
+    <div class="actions spread">
+      <button type="button" class="btn ghost" id="acEdit">Sửa</button>
+      <button type="button" class="btn ghost" data-close>Đóng</button>
+    </div>
+  </form>
+</dialog>
 
 <!-- Clone -->
 <dialog id="dlgClone" class="modal small">
@@ -213,6 +274,9 @@
       <input name="chromePath" placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe">
     </label>
     <p class="muted small">Đang dùng: <code id="setChrome">—</code> · Phiên bản phần mềm: <b id="setVersion">—</b></p>
+    <label class="field">Ngày hết hạn VPS (đồng bộ mọi máy — phần mềm nhắc trước 7 ngày)
+      <input type="date" name="vpsExpiry">
+    </label>
     <label class="field">Ngôn ngữ Chrome (giao diện và ngôn ngữ ưu tiên của trang web)
       <select name="chromeLang">
         <option value="vi">🇻🇳 Tiếng Việt</option>

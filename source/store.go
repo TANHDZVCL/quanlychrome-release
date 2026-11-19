@@ -38,6 +38,11 @@ type Profile struct {
 	// Chrome Web Store extensions this profile should have. Opened for the
 	// user to install the first time the profile is used on a computer.
 	Extensions []string `json:"extensions,omitempty"`
+	// Set when the profile is in the trash (permanently deleted after 7 days).
+	TrashedAt *time.Time `json:"trashedAt,omitempty"`
+	Pinned    bool       `json:"pinned,omitempty"`
+	// Login details of the account used in this profile. Synced encrypted.
+	Account *Account `json:"account,omitempty"`
 
 	// Local-only fields (not synced between computers).
 	LastOpened *time.Time `json:"lastOpened,omitempty"`
@@ -45,6 +50,26 @@ type Profile struct {
 	// is still open keeps working after the manager restarts.
 	FwdPort int `json:"fwdPort,omitempty"`
 }
+
+type Account struct {
+	UID      string `json:"uid"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	TwoFA    string `json:"twofa"` // TOTP secret (base32)
+	Extra    string `json:"extra"`
+}
+
+func (a *Account) empty() bool {
+	return a == nil || (a.UID == "" && a.Email == "" && a.Password == "" && a.TwoFA == "" && a.Extra == "")
+}
+
+// SharedMeta is account-wide information synced between computers.
+type SharedMeta struct {
+	VPSExpiry string    `json:"vpsExpiry"` // YYYY-MM-DD
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+const defaultVPSExpiry = "2026-12-09"
 
 // synced returns the copy of p that is uploaded (local-only fields cleared).
 func (p Profile) synced() Profile {
@@ -68,6 +93,7 @@ type dbFile struct {
 	Settings Settings             `json:"settings"`
 	Profiles []Profile            `json:"profiles"`
 	Deleted  map[string]time.Time `json:"deleted,omitempty"` // tombstones for sync
+	Meta     SharedMeta           `json:"meta"`
 }
 
 // Store keeps all profiles in a single JSON file and saves it atomically.
@@ -245,12 +271,17 @@ func (s *Store) SetSettings(st Settings) error {
 type SyncDoc struct {
 	Profiles []Profile            `json:"profiles"`
 	Deleted  map[string]time.Time `json:"deleted"`
+	Meta     *SharedMeta          `json:"meta,omitempty"`
 }
 
 func (s *Store) SyncDoc() SyncDoc {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d := SyncDoc{Deleted: map[string]time.Time{}}
+	if !s.db.Meta.UpdatedAt.IsZero() {
+		m := s.db.Meta
+		d.Meta = &m
+	}
 	for _, p := range s.db.Profiles {
 		d.Profiles = append(d.Profiles, p.synced())
 	}
@@ -273,6 +304,9 @@ func (s *Store) Merge(r SyncDoc) (removed []string, err error) {
 		if cur, ok := s.db.Deleted[id]; !ok || t.After(cur) {
 			s.db.Deleted[id] = t
 		}
+	}
+	if r.Meta != nil && r.Meta.UpdatedAt.After(s.db.Meta.UpdatedAt) {
+		s.db.Meta = *r.Meta
 	}
 	idx := map[string]int{}
 	for i, p := range s.db.Profiles {
@@ -310,4 +344,44 @@ func newID() string {
 	b := make([]byte, 5)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// Meta returns the shared settings, with defaults filled in.
+func (s *Store) Meta() SharedMeta {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.db.Meta
+	if m.VPSExpiry == "" {
+		m.VPSExpiry = defaultVPSExpiry
+	}
+	return m
+}
+
+func (s *Store) SetMeta(m SharedMeta) error {
+	s.mu.Lock()
+	m.UpdatedAt = time.Now()
+	s.db.Meta = m
+	err := s.saveLocked()
+	s.mu.Unlock()
+	s.changed()
+	return err
+}
+
+// SetTrashed moves profiles to (trash=true) or out of the trash.
+func (s *Store) SetTrashed(ids []string, trash bool) error {
+	now := time.Now()
+	for _, id := range ids {
+		if _, err := s.update(id, func(p *Profile) {
+			if trash {
+				t := now
+				p.TrashedAt = &t
+			} else {
+				p.TrashedAt = nil
+			}
+		}, true); err != nil {
+			return err
+		}
+	}
+	s.changed()
+	return nil
 }

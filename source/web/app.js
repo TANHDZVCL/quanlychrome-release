@@ -81,6 +81,7 @@ const ICON = {
   play: '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
   stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
   edit: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  key: '<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M17 6l2 2M15 8l2 2"/></svg>',
   copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>',
   folder: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>',
   globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
@@ -94,20 +95,37 @@ function filtered() {
   const q = $("#q").value.trim().toLowerCase();
   const g = $("#fGroup").value;
   const st = $("#fStatus").value;
-  return state.profiles.filter((p) => {
+  const h = state.health || {};
+  const list = state.profiles.filter((p) => {
+    if (p.trashedAt) return false;
     if (g === "__none" ? p.group : g && p.group !== g) return false;
+    if (st === "bad") return h[p.id] && !h[p.id].ok;
     if (st === "on" && !p.running) return false;
     if (st === "off" && p.running) return false;
     if (!q) return true;
-    return [p.name, p.group, p.notes, proxyText(p.proxy), p.startUrl].join(" ").toLowerCase().includes(q);
+    return [p.name, p.group, p.notes, proxyText(p.proxy), p.startUrl, p.account?.uid, p.account?.email]
+      .join(" ").toLowerCase().includes(q);
   });
+  const sort = $("#fSort").value;
+  const sizes = state.sizes || {};
+  const key = {
+    name: (a, b) => a.name.localeCompare(b.name, "vi", { numeric: true }),
+    recent: (a, b) => (b.lastOpened || "").localeCompare(a.lastOpened || ""),
+    group: (a, b) => (a.group || "~").localeCompare(b.group || "~", "vi") || a.name.localeCompare(b.name, "vi", { numeric: true }),
+    size: (a, b) => (sizes[b.id] || 0) - (sizes[a.id] || 0),
+  }[sort];
+  return list.map((p, i) => [p, i]).sort(([a, ia], [b, ib]) =>
+    (b.pinned === true) - (a.pinned === true) || (key ? key(a, b) : 0) || ia - ib).map(([p]) => p);
 }
 
 function render() {
   // drop selections of deleted profiles
   for (const id of [...selected]) if (!byId(id)) selected.delete(id);
 
-  $("#statTotal").textContent = state.profiles.length;
+  const active = state.profiles.filter((p) => !p.trashedAt);
+  $("#statTotal").textContent = active.length;
+  $("#trashCount").textContent = state.profiles.length - active.length;
+  renderVpsBanner();
   $("#statRunning").textContent = state.profiles.filter((p) => p.running).length;
   $("#chromeWarn").hidden = !!state.chromePath;
   renderSyncBtn();
@@ -128,8 +146,8 @@ function render() {
   $("#rows").innerHTML = list.map(rowHTML).join("");
   const empty = list.length === 0;
   $("#empty").hidden = !empty;
-  $("#emptyText").textContent = state.profiles.length ? "Không có hồ sơ khớp bộ lọc." : "Chưa có hồ sơ nào.";
-  $("#btnNew2").hidden = state.profiles.length > 0;
+  $("#emptyText").textContent = active.length ? "Không có hồ sơ khớp bộ lọc." : "Chưa có hồ sơ nào.";
+  $("#btnNew2").hidden = active.length > 0;
 
   const vis = list.map((p) => p.id);
   const allSel = vis.length > 0 && vis.every((id) => selected.has(id));
@@ -142,7 +160,7 @@ function render() {
 function rowHTML(p) {
   const sel = selected.has(p.id);
   const vp = vpnOfProfile(p);
-  const ck = checks.get(p.id);
+  const ck = checks.get(p.id) || (state.health || {})[p.id];
   const iso = vp ? COUNTRY_ISO[vp.country] : (ck && ck.ok ? ck.country : "");
   const label = vp ? `<span class="pcountry">${esc(vp.name !== vp.country ? vp.name + " · " : "")}${esc(VN_COUNTRY[vp.country] || vp.country)}</span>` : "";
   const px = p.proxy && p.proxy.type && p.proxy.host
@@ -161,13 +179,14 @@ function rowHTML(p) {
     : `<button class="btn sm success" data-act="open" ${isBusy ? "disabled" : ""}>${ICON.play}Mở</button>`;
   return `<tr data-id="${p.id}" class="${sel ? "sel" : ""}">
     <td class="c-check"><input type="checkbox" data-act="sel" ${sel ? "checked" : ""}></td>
-    <td><div class="pname">${esc(p.name)}${cloudHTML}${p.extensions && p.extensions.length ? `<span class="extcount" title="${p.extensions.length} tiện ích">🧩${p.extensions.length}</span>` : ""}</div>${p.notes ? `<div class="pnote" title="${esc(p.notes)}">${esc(p.notes)}</div>` : ""}</td>
+    <td><div class="pname"><span class="pin ${p.pinned ? "on" : ""}" data-act="pin" title="${p.pinned ? "Bỏ ghim" : "Ghim lên đầu"}">${p.pinned ? "★" : "☆"}</span>${esc(p.name)}${cloudHTML}${p.extensions && p.extensions.length ? `<span class="extcount" title="${p.extensions.length} tiện ích">🧩${p.extensions.length}</span>` : ""}</div>${p.notes ? `<div class="pnote" title="${esc(p.notes)}">${esc(p.notes)}</div>` : ""}</td>
     <td>${p.group ? `<span class="chip">${esc(p.group)}</span>` : '<span class="muted">—</span>'}</td>
     <td>${px}</td>
     <td>${statusHTML}</td>
     <td class="muted" title="${p.lastOpened ? esc(new Date(p.lastOpened).toLocaleString("vi-VN")) : ""}">${timeAgo(p.lastOpened)}</td>
     <td class="muted">${fmtSize((state.sizes || {})[p.id])}</td>
     <td><div class="rowact">${toggle}
+      <button class="iconbtn" data-act="acc" title="Thông tin tài khoản & mã 2FA">${ICON.key}</button>
       <button class="iconbtn" data-act="edit" title="Sửa">${ICON.edit}</button>
       <button class="iconbtn" data-act="check" title="Kiểm tra proxy">${ICON.globe}</button>
       <button class="iconbtn" data-act="clone" title="Nhân bản (giữ tiện ích, không cookie)">${ICON.copy}</button>
@@ -177,10 +196,10 @@ function rowHTML(p) {
 }
 
 function checkHTML(id) {
-  const c = checks.get(id);
+  const c = checks.get(id) || (state.health || {})[id];
   if (!c) return "";
   if (c.wait) return '<div class="pcheck wait">Đang kiểm tra…</div>';
-  if (!c.ok) return `<div class="pcheck bad" title="${esc(c.error)}">✕ ${esc(c.error)}</div>`;
+  if (!c.ok) return `<div class="pcheck bad" title="${esc(c.error)}">⚠ Proxy lỗi: ${esc(c.error)}${c.at ? " · " + timeAgo(c.at) : ""}</div>`;
   const loc = [c.city, c.country].filter(Boolean).join(", ");
   return `<div class="pcheck ok">✓ ${flagOf(c.country)} ${esc(c.ip)}${loc ? " · " + esc(loc) : ""} · ${c.ms} ms</div>`;
 }
@@ -264,14 +283,14 @@ async function deleteProfiles(ids) {
   const names = ids.map((id) => byId(id)?.name).filter(Boolean);
   const ok = await confirmBox(
     `Xóa ${ids.length} hồ sơ?`,
-    `${names.slice(0, 5).join(", ")}${names.length > 5 ? "…" : ""}\n\nToàn bộ dữ liệu Chrome của các hồ sơ này (cookie, đăng nhập, lịch sử) sẽ bị xóa vĩnh viễn.`,
-    "Xóa vĩnh viễn",
+    `${names.slice(0, 5).join(", ")}${names.length > 5 ? "…" : ""}\n\nHồ sơ được chuyển vào Thùng rác 🗑 và giữ 7 ngày (khôi phục được cả đăng nhập), sau đó tự xóa vĩnh viễn.`,
+    "Chuyển vào thùng rác",
   );
   if (!ok) return;
   try {
     const r = await api("POST", "/api/delete", { ids });
     ids.forEach((id) => { selected.delete(id); checks.delete(id); });
-    toast(`Đã xóa ${r.deleted} hồ sơ` + (r.warning ? `\n${r.warning}` : ""), r.warning ? "err" : "ok");
+    toast(`Đã chuyển ${r.trashed} hồ sơ vào thùng rác`, "ok");
   } catch (e) { toast(e.message, "err"); }
   refresh();
 }
@@ -293,6 +312,9 @@ function openProfileDialog(id) {
     f.name.value = p.name; f.group.value = p.group || ""; f.notes.value = p.notes || ""; f.startUrl.value = p.startUrl || "";
     f.ptype.value = p.proxy?.type || ""; f.phost.value = p.proxy?.host || ""; f.pport.value = p.proxy?.port || "";
     f.puser.value = p.proxy?.user || ""; f.ppass.value = p.proxy?.pass || "";
+    const a = p.account || {};
+    f.auid.value = a.uid || ""; f.aemail.value = a.email || ""; f.apass.value = a.password || "";
+    f.a2fa.value = a.twofa || ""; f.aextra.value = a.extra || "";
     f.exts.value = (p.extensions || []).map((x) => "https://chromewebstore.google.com/detail/" + x).join("\n");
   } else {
     const g = $("#fGroup").value;
@@ -322,6 +344,94 @@ async function clearCache(ids) {
   } catch (e) { toast(e.message, "err"); }
   setTimeout(refresh, 1500);
 }
+
+// ---------- VPS expiry ----------
+function renderVpsBanner() {
+  const b = $("#vpsWarn");
+  const d = state.meta && state.meta.vpsExpiry;
+  if (!d || !(state.sync && state.sync.enabled)) { b.hidden = true; return; }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((new Date(d + "T00:00:00") - today) / 86400000);
+  if (days > 7) { b.hidden = true; return; }
+  const when = new Date(d).toLocaleDateString("vi-VN");
+  b.className = "banner" + (days <= 2 ? " danger" : "");
+  b.innerHTML = days >= 0
+    ? `⏰ VPS sẽ hết hạn ngày <b>${when}</b> (còn ${days} ngày). Hãy gia hạn để không mất Proxy VPN và đồng bộ. <button class="btn sm" id="vpsRenewed">Đã gia hạn</button>`
+    : `⛔ VPS đã quá hạn từ ngày <b>${when}</b>. Gia hạn ngay để Proxy VPN và đồng bộ hoạt động lại. <button class="btn sm" id="vpsRenewed">Đã gia hạn</button>`;
+  b.hidden = false;
+  $("#vpsRenewed").onclick = () => { openSettings(); setTimeout(() => $("#formSettings").vpsExpiry.focus(), 50); toast("Nhập ngày hết hạn mới của VPS rồi bấm Lưu"); };
+}
+
+// ---------- trash ----------
+function renderTrash() {
+  const list = state.profiles.filter((p) => p.trashedAt);
+  $("#trEmpty").hidden = list.length > 0;
+  $("#trRows").innerHTML = list.map((p) => {
+    const left = Math.max(0, 7 - Math.floor((Date.now() - new Date(p.trashedAt)) / 86400000));
+    return `<tr data-id="${p.id}"><td class="c-check"><input type="checkbox" class="trsel"></td>
+      <td><b>${esc(p.name)}</b>${p.group ? ` <span class="chip">${esc(p.group)}</span>` : ""}</td>
+      <td class="muted">${timeAgo(p.trashedAt)}</td><td class="muted">${left} ngày</td></tr>`;
+  }).join("");
+  $("#trAll").checked = false;
+}
+const trIDs = () => [...document.querySelectorAll("#trRows .trsel:checked")].map((c) => c.closest("tr").dataset.id);
+$("#btnTrash").addEventListener("click", () => { renderTrash(); $("#dlgTrash").showModal(); });
+$("#trAll").addEventListener("change", (e) => document.querySelectorAll("#trRows .trsel").forEach((c) => (c.checked = e.target.checked)));
+$("#trRestore").addEventListener("click", (e) => busyBtn(e.target, async () => {
+  const ids = trIDs();
+  if (!ids.length) throw new Error("Hãy tick chọn hồ sơ cần khôi phục");
+  await api("POST", "/api/restore", { ids });
+  toast(`Đã khôi phục ${ids.length} hồ sơ`, "ok");
+  await refresh(); renderTrash();
+}));
+$("#trDelete").addEventListener("click", async (e) => {
+  const ids = trIDs();
+  if (!ids.length) { toast("Hãy tick chọn hồ sơ cần xóa", "err"); return; }
+  const ok = await confirmBox(`Xóa vĩnh viễn ${ids.length} hồ sơ?`, "Toàn bộ dữ liệu Chrome và đăng nhập của các hồ sơ này sẽ bị xóa trên mọi máy, KHÔNG khôi phục được.", "Xóa vĩnh viễn");
+  if (!ok) return;
+  busyBtn(e.target, async () => {
+    await api("POST", "/api/delete", { ids, permanent: true });
+    toast(`Đã xóa vĩnh viễn ${ids.length} hồ sơ`, "ok");
+    await refresh(); renderTrash();
+  });
+});
+
+// ---------- account quick view ----------
+let accID = null, accTimer = null;
+function openAccount(id) {
+  const p = byId(id);
+  accID = id;
+  const a = p.account || {};
+  $("#acTitle").textContent = "Tài khoản · " + p.name;
+  const rows = [["UID", a.uid], ["Email / SĐT", a.email], ["Mật khẩu", a.password], ["Thông tin thêm", a.extra]].filter(([, v]) => v);
+  $("#acRows").innerHTML = rows.length
+    ? rows.map(([k, v], i) => `<div class="acrow"><span class="muted small">${k}</span><code>${k === "Mật khẩu" ? "••••••••" : esc(v)}</code><button type="button" class="btn sm" data-copy="${i}">Copy</button></div>`).join("")
+    : '<p class="muted">Chưa có thông tin. Bấm "Sửa" để thêm UID, email, mật khẩu, mã 2FA.</p>';
+  $("#acRows").onclick = (e) => {
+    const b = e.target.closest("[data-copy]");
+    if (!b) return;
+    navigator.clipboard.writeText(rows[+b.dataset.copy][1]);
+    toast(`Đã copy ${rows[+b.dataset.copy][0]}`, "ok");
+  };
+  $("#acErr").textContent = "";
+  $("#acTotp").hidden = !a.twofa;
+  clearInterval(accTimer);
+  if (a.twofa) { tickTotp(); accTimer = setInterval(tickTotp, 1000); }
+  $("#dlgAcc").showModal();
+}
+async function tickTotp() {
+  if (!$("#dlgAcc").open) { clearInterval(accTimer); return; }
+  try {
+    const r = await api("GET", `/api/totp/${accID}`);
+    $("#acCode").textContent = r.code.slice(0, 3) + " " + r.code.slice(3);
+    $("#acBar").style.width = (r.remaining / 30) * 100 + "%";
+  } catch (e) { $("#acErr").textContent = e.message; clearInterval(accTimer); }
+}
+$("#acCopyCode").addEventListener("click", () => {
+  navigator.clipboard.writeText($("#acCode").textContent.replace(/\s/g, ""));
+  toast("Đã copy mã 2FA", "ok");
+});
+$("#acEdit").addEventListener("click", () => { $("#dlgAcc").close(); openProfileDialog(accID); });
 
 // ---------- clone ----------
 let cloneSrc = null;
@@ -582,6 +692,7 @@ $("#formProfile").addEventListener("submit", async (e) => {
     name: f.name.value, group: f.group.value, notes: f.notes.value, startUrl: f.startUrl.value,
     proxy: formProxy(f), count: parseInt(f.count.value, 10) || 1,
     extensions: extIDs(f.exts.value),
+    account: { uid: f.auid.value, email: f.aemail.value, password: f.apass.value, twofa: f.a2fa.value, extra: f.aextra.value },
   };
   if (f.exts.value.trim() && !body.extensions.length) {
     $("#pfErr").textContent = "Không nhận ra link tiện ích. Hãy dán link dạng https://chromewebstore.google.com/detail/…";
@@ -639,6 +750,9 @@ $("#formGroup").addEventListener("submit", async (e) => {
 $("#formSettings").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
+    if (e.target.vpsExpiry.value && e.target.vpsExpiry.value !== state.meta?.vpsExpiry) {
+      await api("POST", "/api/meta", { vpsExpiry: e.target.vpsExpiry.value });
+    }
     await api("POST", "/api/settings", {
       chromePath: e.target.chromePath.value,
       allowMultiOpen: e.target.allowMultiOpen.checked,
@@ -656,6 +770,7 @@ function openSettings() {
   f.chromePath.value = state.settings.chromePath || "";
   f.allowMultiOpen.checked = !!state.settings.allowMultiOpen;
   f.chromeLang.value = state.settings.chromeLang || "vi";
+  f.vpsExpiry.value = (state.meta && state.meta.vpsExpiry) || "";
   f.cacheMB.value = String(state.settings.cacheMB || 0);
   $("#setChrome").textContent = state.chromePath || "Không tìm thấy";
   $("#setData").textContent = state.dataDir;
@@ -676,6 +791,8 @@ $("#rows").addEventListener("click", (e) => {
     case "edit": openProfileDialog(id); break;
     case "check": checkProfiles([id]); break;
     case "clone": openClone(id); break;
+    case "pin": api("POST", "/api/pin", { ids: [id], pinned: !byId(id).pinned }).then(refresh).catch((e) => toast(e.message, "err")); break;
+    case "acc": openAccount(id); break;
     case "folder": api("POST", `/api/folder/${id}`).catch((err) => toast(err.message, "err")); break;
   }
 });
@@ -718,6 +835,8 @@ $("#btnSettings").addEventListener("click", openSettings);
 $("#btnSync").addEventListener("click", () => (state.sync && state.sync.enabled ? openSyncPanel() : openLogin()));
 $("#warnSettings").addEventListener("click", (e) => { e.preventDefault(); openSettings(); });
 ["#q", "#fGroup", "#fStatus"].forEach((s) => $(s).addEventListener("input", render));
+$("#fSort").value = localStorage.getItem("sort") || "";
+$("#fSort").addEventListener("input", () => { localStorage.setItem("sort", $("#fSort").value); render(); });
 
 document.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.key.toLowerCase() === "n" && !document.querySelector("dialog[open]")) { e.preventDefault(); openProfileDialog(); }

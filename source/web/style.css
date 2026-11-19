@@ -188,7 +188,23 @@ input, select, textarea, option, button { font-family: "FlagEmoji", "Segoe UI", 
 .pcountry { font-size: 12px; color: #cfd6e2; margin-left: 2px; }
 
 .extcount { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
-.c-act { width: 190px; }
+.c-act { width: 220px; }
 tbody td.muted { white-space: nowrap; }
 
 .verchip { font-size: 12px; font-weight: 600; color: #9cc0ff; background: #1d2a40; border: 1px solid #2c3f60; padding: 2px 9px; border-radius: 999px; margin-left: 4px; }
+
+.pin { cursor: pointer; color: #4a5363; margin-right: 6px; font-size: 14px; user-select: none; }
+.pin.on { color: #f5c542; }
+.pin:hover { color: #f5c542; }
+.pbad { color: var(--red); font-size: 12px; margin-top: 2px; }
+.banner.danger { background: #3a1414; color: #ffb4b0; border-color: #5a1f1f; }
+.banner .btn { margin-left: 10px; height: 28px; }
+.acrows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.acrow { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.acrow code { background: transparent; font-size: 13px; padding: 0; white-space: pre-wrap; }
+.totp { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.totprow { display: flex; align-items: center; justify-content: space-between; }
+.totprow span { font: 700 28px Consolas, monospace; letter-spacing: 4px; color: #7ee2aa; }
+.totpbar { height: 4px; background: #262e3a; border-radius: 4px; margin-top: 6px; overflow: hidden; }
+.totpbar div { height: 100%; background: var(--green); transition: width 1s linear; }
+#fSort { min-width: 170px; }
