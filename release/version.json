@@ -1,1 +1,1 @@
-{"version":"2.6","sha256":"0cb648fa36b01737e0c648400b9efd927c4a70f97fea765864d80bdd1e1a86f6","notes":"Bản 2.6: cờ quốc gia cạnh proxy, nhân bản hồ sơ (giữ tiện ích, không cookie), danh sách tiện ích cài sẵn.","file":"ChromeManager.exe"}
+{"version": "2.7", "sha256": "ab8313ebf61179870709f1511d8886e2bd098f8ab3b636c75297a205ad3d57cf", "notes": "Sửa lỗi lá cờ quốc gia không hiện trên Windows (hiện chữ VN thay vì cờ).", "file": "ChromeManager.exe"}
