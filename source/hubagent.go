@@ -53,10 +53,16 @@ type HubAgent struct {
 	cancel    context.CancelFunc
 	gen       int
 	kick      chan struct{}
+	wake      chan struct{}        // a new frame or message is waiting
+	hot       map[string]time.Time // panels a viewer looked at or typed in
+	tickNow   chan struct{}        // check the streams right away
+	pending   map[string][]hubCmd  // input that came before its stream was ready
 }
 
 func NewHubAgent(m *Manager, s *Store, sy *Syncer) *HubAgent {
-	a := &HubAgent{mgr: m, store: s, sync: sy, streams: map[string]*hubStream{}, kick: make(chan struct{}, 1)}
+	a := &HubAgent{mgr: m, store: s, sync: sy, streams: map[string]*hubStream{}, kick: make(chan struct{}, 1),
+		wake: make(chan struct{}, 1), hot: map[string]time.Time{},
+		tickNow: make(chan struct{}, 1), pending: map[string][]hubCmd{}}
 	go a.connLoop()
 	go a.tickLoop()
 	go a.sendLoop()
@@ -195,12 +201,36 @@ func (a *HubAgent) push(v any) {
 	a.mu.Lock()
 	a.out = append(a.out, b)
 	a.mu.Unlock()
+	a.wakeUp()
 }
 
-// sendLoop posts queued messages and the newest frames every 150 ms.
+func (a *HubAgent) wakeUp() {
+	select {
+	case a.wake <- struct{}{}:
+	default:
+	}
+}
+
+// isHot: the panel a viewer is using gets every frame right away; the
+// others only a picture every couple of seconds, so typing stays quick.
+func (a *HubAgent) isHotLocked(id string) bool {
+	if len(a.hot) == 0 {
+		return true
+	}
+	t, ok := a.hot[id]
+	return ok && time.Since(t) < 3*time.Minute
+}
+
+// sendLoop posts queued messages and new frames as soon as they exist.
 func (a *HubAgent) sendLoop() {
 	client := &http.Client{Timeout: 30 * time.Second}
-	for range time.Tick(150 * time.Millisecond) {
+	tick := time.NewTicker(500 * time.Millisecond)
+	lastSent := map[string]time.Time{}
+	for {
+		select {
+		case <-a.wake:
+		case <-tick.C:
+		}
 		a.mu.Lock()
 		if !a.connected {
 			a.out = nil
@@ -210,15 +240,18 @@ func (a *HubAgent) sendLoop() {
 		msgs := a.out
 		a.out = nil
 		streams := make([]*hubStream, 0, len(a.streams))
-		for _, s := range a.streams {
+		hot := map[string]bool{}
+		for id, s := range a.streams {
 			streams = append(streams, s)
+			hot[id] = a.isHotLocked(id)
 		}
 		a.mu.Unlock()
 		for _, s := range streams {
 			s.mu.Lock()
-			if s.frame != nil && s.seq != s.sent {
+			if s.frame != nil && s.seq != s.sent && (hot[s.id] || s.sent < 0 || time.Since(lastSent[s.id]) > 2*time.Second) {
 				msgs = append(msgs, s.frame)
 				s.sent = s.seq
+				lastSent[s.id] = time.Now()
 			}
 			s.mu.Unlock()
 		}
@@ -233,6 +266,7 @@ func (a *HubAgent) sendLoop() {
 		if resp, err := client.Do(req); err == nil {
 			resp.Body.Close()
 		}
+		time.Sleep(25 * time.Millisecond) // at most ~40 posts a second
 	}
 }
 
@@ -267,6 +301,7 @@ func (a *HubAgent) handle(raw []byte) {
 		a.viewers = c.N
 		a.panelsSig = ""
 		a.mu.Unlock()
+		a.checkNow()
 		if c.N == 0 {
 			a.stopAll()
 		}
@@ -285,6 +320,13 @@ func (a *HubAgent) handle(raw []byte) {
 	if !a.isHubProfile(c.P) {
 		return
 	}
+	a.mu.Lock()
+	a.hot[c.P] = time.Now() // looked at ("focus") or typed in
+	a.mu.Unlock()
+	if c.T == "focus" {
+		a.wakeUp()
+		return
+	}
 	switch c.T {
 	case "open":
 		go func() {
@@ -298,6 +340,13 @@ func (a *HubAgent) handle(raw []byte) {
 	s := a.streams[c.P]
 	a.mu.Unlock()
 	if s == nil {
+		// the picture is not streaming yet: keep the input until it is
+		a.mu.Lock()
+		if len(a.pending[c.P]) < 500 {
+			a.pending[c.P] = append(a.pending[c.P], c)
+		}
+		a.mu.Unlock()
+		a.checkNow()
 		return
 	}
 	select {
@@ -385,17 +434,37 @@ func (a *HubAgent) stop(id string) {
 }
 
 // tickLoop keeps streams in line with open profiles and publishes panels.
+func (a *HubAgent) checkNow() {
+	select {
+	case a.tickNow <- struct{}{}:
+	default:
+	}
+}
+
 func (a *HubAgent) tickLoop() {
-	for range time.Tick(2 * time.Second) {
+	tick := time.NewTicker(2 * time.Second)
+	for {
+		select {
+		case <-tick.C:
+		case <-a.tickNow:
+		}
 		a.mu.Lock()
 		watching := a.connected && a.viewers > 0
 		a.mu.Unlock()
 		if !watching {
+			a.mu.Lock()
+			clear(a.pending)
+			a.mu.Unlock()
 			continue
 		}
 		st := a.settings()
 		for _, id := range st.Profiles {
 			running := a.mgr.IsRunning(id)
+			if !running {
+				a.mu.Lock()
+				delete(a.pending, id)
+				a.mu.Unlock()
+			}
 			a.mu.Lock()
 			s := a.streams[id]
 			a.mu.Unlock()
@@ -545,13 +614,14 @@ func (a *HubAgent) start(id string) error {
 		s.frame = msg
 		s.seq++
 		s.mu.Unlock()
+		a.wakeUp()
 	})
 	_ = c.Call(tctx, "Page.bringToFront", nil, nil)
 	if u := currentURL(pages, target); u == "" || u == "about:blank" || strings.HasPrefix(u, "chrome://newtab") {
 		_ = c.Call(tctx, "Page.navigate", map[string]any{"url": zaloURL}, nil)
 	}
 	if err := c.Call(tctx, "Page.startScreencast", map[string]any{
-		"format": "jpeg", "quality": 60, "maxWidth": 1280, "maxHeight": 1000, "everyNthFrame": 1,
+		"format": "jpeg", "quality": 80, "maxWidth": 1920, "maxHeight": 1200, "everyNthFrame": 1,
 	}, nil); err != nil {
 		s.cancel()
 		return err
@@ -559,6 +629,13 @@ func (a *HubAgent) start(id string) error {
 	a.refreshTitle(s)
 	a.mu.Lock()
 	a.streams[id] = s
+	for _, c := range a.pending[id] {
+		select {
+		case s.in <- c:
+		default:
+		}
+	}
+	delete(a.pending, id)
 	a.mu.Unlock()
 	log.Printf("hub: đang truyền hình ảnh %s", id)
 	return nil

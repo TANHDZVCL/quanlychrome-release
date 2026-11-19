@@ -42,7 +42,11 @@ input:focus { border-color: var(--accent); }
 #typebar { display: flex; align-items: center; gap: 6px; padding: 8px; background: var(--panel); border-top: 1px solid var(--line); }
 #typeTo.live { color: #7ee2aa; }
 #typeTo { color: var(--muted); font-size: 12px; white-space: nowrap; flex-shrink: 0; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
+body.solo #tabs { display: flex; }
+body.solo #grid { grid-template-columns: 1fr !important; grid-template-rows: minmax(0, 1fr) !important; }
+body.solo .panel:not(.active) { display: none; }
 @media (max-width: 800px) {
+  [data-a="solo"] { display: none; }
   #tabs { display: flex; }
   #grid { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; padding: 6px; }
   .panel:not(.active) { display: none; }
@@ -72,7 +76,7 @@ input:focus { border-color: var(--accent); }
   <div id="grid"></div>
   <div id="typebar">
     <span id="typeTo"></span>
-    <input id="typeIn" placeholder="(Không bắt buộc) gõ ở đây rồi Enter để gửi" autocomplete="off">
+    <input id="typeIn" enterkeyhint="send" placeholder="Gõ tin rồi bấm Enter (↵) để gửi" autocomplete="off">
     <button class="primary" id="typeSend">Gửi</button>
   </div>
 </div>
@@ -170,7 +174,7 @@ async function start() {
   setAgent(!!me.online, me.agentName);
   if (es) es.close();
   es = new EventSource("/hub/stream");
-  es.onopen = () => send({ t: "hello" });
+  es.onopen = () => { send({ t: "hello" }); if (active) send({ t: "focus", p: active }); };
   es.onmessage = (ev) => {
     let m; try { m = JSON.parse(ev.data); } catch { return; }
     if (m.t === "agent") setAgent(m.online, m.name);
@@ -198,7 +202,7 @@ function setPanels(items) {
     lastUnread[p.id] = p.unread;
   }
   panels = items;
-  if (!active || !panels.find((p) => p.id === active)) active = panels[0] && panels[0].id;
+  if (!active || !panels.find((p) => p.id === active)) { active = panels[0] && panels[0].id; if (active) send({ t: "focus", p: active }); }
   renderPanels();
 }
 
@@ -232,6 +236,7 @@ function renderPanels() {
       : `Hồ sơ đang đóng trên máy chứa Zalo.<br><br><button data-open="${p.id}">Mở hồ sơ này</button>`;
     if (e.ph.dataset.html !== html) { e.ph.innerHTML = html; e.ph.dataset.html = html; }
     e.root.classList.toggle("active", p.id === active);
+    e.solo.textContent = document.body.classList.contains("solo") ? "⊞ Xem tất cả" : "⛶ Phóng to";
   });
   updateTypeTo();
   $("#tabs").innerHTML = panels.map((p) => `<button data-tab="${p.id}" class="${p.id === active ? "on" : ""}">${escapeHTML(p.name)}${p.unread ? ` (${p.unread})` : ""}</button>`).join("");
@@ -240,18 +245,27 @@ function renderPanels() {
 $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) setActive(b.dataset.tab); });
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) { send({ t: "open", p: b.dataset.open }); b.textContent = "Đang mở…"; } });
 
-function setActive(id) { active = id; renderPanels(); }
+function toggleSolo() {
+  const on = !document.body.classList.contains("solo");
+  document.body.classList.toggle("solo", on);
+  localStorage.setItem("hubSolo", on ? "1" : "0");
+  renderPanels();
+}
+if (localStorage.getItem("hubSolo") === "1") document.body.classList.add("solo");
+function setActive(id) { if (active !== id) send({ t: "focus", p: id }); active = id; renderPanels(); }
 
 function makePanel(id) {
   const root = document.createElement("div");
   root.className = "panel";
   root.innerHTML = `<div class="ph"><span class="nm"></span><span class="badge" hidden></span><span class="pmuted st"></span>
-    <span class="tools"><button data-a="zalo" title="Mở lại trang Zalo">Zalo</button><button data-a="reload" title="Tải lại trang">↻</button></span></div>
+    <span class="tools"><button data-a="solo" title="Phóng to Zalo này cho đầy màn hình / thu nhỏ lại">⛶ Phóng to</button><button data-a="zalo" title="Mở lại trang Zalo">Zalo</button><button data-a="reload" title="Tải lại trang">↻</button></span></div>
     <div class="screen"><img alt="" hidden><div class="placeholder"></div></div>`;
-  const e = { root, name: root.querySelector(".nm"), badge: root.querySelector(".badge"), status: root.querySelector(".st"),
+  const e = { root, name: root.querySelector(".nm"), badge: root.querySelector(".badge"), status: root.querySelector(".st"), solo: root.querySelector('[data-a="solo"]'),
     img: root.querySelector("img"), ph: root.querySelector(".placeholder"), screen: root.querySelector(".screen") };
   root.querySelector(".tools").addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-a]"); if (b) send({ t: b.dataset.a, p: id });
+    const b = ev.target.closest("[data-a]"); if (!b) return;
+    if (b.dataset.a === "solo") { setActive(id); toggleSolo(); return; }
+    send({ t: b.dataset.a, p: id });
   });
   root.addEventListener("pointerdown", () => { if (active !== id) setActive(id); });
   bindInput(id, e);
@@ -364,6 +378,7 @@ function sendTyped() {
   $("#typeIn").value = "";
   $("#typeIn").focus();
 }
+$("#typeSend").addEventListener("pointerdown", (e) => e.preventDefault()); // keep the phone keyboard open
 $("#typeSend").onclick = sendTyped;
 $("#typeIn").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendTyped(); } });
 

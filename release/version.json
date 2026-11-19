@@ -1,1 +1,1 @@
-{"version": "3.6", "sha256": "0aca27fda90fa12fde647e22d3a0bc13dd9e224c7110238c7d91a74dc5e75bdc", "notes": "Trung tâm Zalo: gõ bàn phím là chữ vào thẳng Zalo đang chọn, Enter để gửi, không cần bấm vào ô", "file": "ChromeManager.exe"}
+{"version": "3.7", "sha256": "c02da45c5322a1223120c0202b7e4277e22ee4881d56a2e4437bfd705f6e13d4", "notes": "Trung tâm Zalo: bớt trễ khi gõ, hình nét hơn, nút Phóng to 1 Zalo, sửa lỗi điện thoại bấm/gõ ngay khi mở trang bị mất", "file": "ChromeManager.exe"}
