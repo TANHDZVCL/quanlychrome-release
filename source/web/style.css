@@ -190,3 +190,5 @@ input, select, textarea, option, button { font-family: "FlagEmoji", "Segoe UI", 
 .extcount { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
 .c-act { width: 190px; }
 tbody td.muted { white-space: nowrap; }
+
+.verchip { font-size: 12px; font-weight: 600; color: #9cc0ff; background: #1d2a40; border: 1px solid #2c3f60; padding: 2px 9px; border-radius: 999px; margin-left: 4px; }

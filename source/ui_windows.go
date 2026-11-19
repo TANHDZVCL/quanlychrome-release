@@ -23,7 +23,7 @@ func runUI(url, dataDir string) {
 		AutoFocus: true,
 		DataPath:  filepath.Join(dataDir, "webview"),
 		WindowOptions: webview2.WindowOptions{
-			Title:  appName,
+			Title:  appName + " v" + appVersion,
 			Width:  1280,
 			Height: 800,
 			IconId: 1,

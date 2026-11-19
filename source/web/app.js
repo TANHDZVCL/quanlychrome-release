@@ -111,6 +111,10 @@ function render() {
   $("#statRunning").textContent = state.profiles.filter((p) => p.running).length;
   $("#chromeWarn").hidden = !!state.chromePath;
   renderSyncBtn();
+  if (state.version) {
+    $("#verChip").textContent = "v" + state.version;
+    document.title = "Quản lý Chrome v" + state.version;
+  }
 
   // group filter + datalist
   const fg = $("#fGroup");
