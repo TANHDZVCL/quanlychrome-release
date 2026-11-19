@@ -88,6 +88,8 @@ type Settings struct {
 	ChromeLang string `json:"chromeLang"`
 	// Max disk cache per profile in MB: 0 = 200 (default), -1 = no limit.
 	CacheMB int `json:"cacheMB"`
+	// "Trung tâm Zalo": profiles streamed to the /hub page (this computer only).
+	Hub HubSettings `json:"hub"`
 }
 
 type dbFile struct {

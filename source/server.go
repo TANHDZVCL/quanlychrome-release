@@ -22,6 +22,7 @@ type Server struct {
 	store *Store
 	mgr   *Manager
 	sync  *Syncer
+	hub   *HubAgent
 	token string
 }
 
@@ -43,6 +44,9 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("POST /api/clone", s.clone)
 	api.HandleFunc("POST /api/restore", s.restore)
 	api.HandleFunc("POST /api/tile", s.tile)
+	api.HandleFunc("POST /api/hub/settings", s.hubSettings)
+	api.HandleFunc("POST /api/hub/password", s.hubPassword)
+	api.HandleFunc("POST /api/open-url", s.openHubURL)
 	api.HandleFunc("POST /api/pin", s.pin)
 	api.HandleFunc("POST /api/meta", s.saveMeta)
 	api.HandleFunc("GET /api/totp/{id}", s.totp)
@@ -111,6 +115,7 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 		"version":    appVersion,
 		"meta":       s.store.Meta(),
 		"health":     health.For(ps),
+		"hub":        s.hub.Status(),
 	})
 }
 
@@ -441,6 +446,7 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "ngôn ngữ không hợp lệ")
 		return
 	}
+	in.Hub = s.store.Settings().Hub // edited from its own dialog
 	if err := s.store.SetSettings(in); err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -746,4 +752,77 @@ func (s *Server) tile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"arranged": n})
+}
+
+func (s *Server) hubSettings(w http.ResponseWriter, r *http.Request) {
+	var in HubSettings
+	if err := readJSON(r, &in); err != nil {
+		writeErr(w, 400, "dữ liệu không hợp lệ")
+		return
+	}
+	var ids []string
+	for _, id := range in.Profiles {
+		if _, ok := s.store.Get(id); ok {
+			ids = append(ids, id)
+		}
+	}
+	if in.Enabled && len(ids) == 0 {
+		writeErr(w, 400, "Hãy chọn ít nhất 1 hồ sơ")
+		return
+	}
+	if len(ids) > 12 {
+		writeErr(w, 400, "Tối đa 12 hồ sơ")
+		return
+	}
+	if in.Enabled && !s.sync.Enabled() {
+		writeErr(w, 400, "Hãy đăng nhập Đồng bộ trước — Trung tâm Zalo chạy qua máy chủ đồng bộ")
+		return
+	}
+	st := s.store.Settings()
+	st.Hub = HubSettings{Enabled: in.Enabled, Profiles: ids}
+	if err := s.store.SetSettings(st); err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	s.hub.Reconnect()
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+func (s *Server) hubPassword(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Password string `json:"password"`
+	}
+	if err := readJSON(r, &in); err != nil {
+		writeErr(w, 400, "dữ liệu không hợp lệ")
+		return
+	}
+	if !s.sync.Enabled() {
+		writeErr(w, 400, "Hãy đăng nhập Đồng bộ trước")
+		return
+	}
+	body, _ := json.Marshal(in)
+	if _, _, err := s.sync.do("POST", "/api/hub/password", body, nil); err != nil {
+		var ae *apiError
+		if errors.As(err, &ae) && ae.Status == 404 {
+			writeErr(w, 400, "Máy chủ chưa có Trung tâm Zalo — cần cập nhật máy chủ (xem hướng dẫn)")
+			return
+		}
+		writeErr(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+// openHubURL opens the /hub page in the default browser.
+func (s *Server) openHubURL(w http.ResponseWriter, r *http.Request) {
+	u := s.hub.Status().URL
+	if !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "http://") {
+		writeErr(w, 400, "chưa đăng nhập đồng bộ")
+		return
+	}
+	if err := openURL(u); err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }

@@ -26,6 +26,8 @@ type cdpConn struct {
 	mu      sync.Mutex
 	pending map[int64]chan cdpResp
 	done    chan struct{}
+	// onEvent, if set, receives protocol events (messages without an id).
+	onEvent func(method string, params json.RawMessage)
 }
 
 type cdpResp struct {
@@ -88,11 +90,22 @@ func (c *cdpConn) readLoop() {
 			return
 		}
 		var msg struct {
-			ID int64 `json:"id"`
+			ID     int64           `json:"id"`
+			Method string          `json:"method"`
+			Params json.RawMessage `json:"params"`
 			cdpResp
 		}
-		if json.Unmarshal(data, &msg) != nil || msg.ID == 0 {
-			continue // event
+		if json.Unmarshal(data, &msg) != nil {
+			continue
+		}
+		if msg.ID == 0 {
+			c.mu.Lock()
+			h := c.onEvent
+			c.mu.Unlock()
+			if h != nil && msg.Method != "" {
+				h(msg.Method, msg.Params)
+			}
+			continue
 		}
 		c.mu.Lock()
 		ch := c.pending[msg.ID]
@@ -215,4 +228,65 @@ func openTabReplacing(ctx context.Context, c *cdpConn, url string) error {
 		}
 	}
 	return nil
+}
+
+// SetEventHandler installs the callback for protocol events.
+func (c *cdpConn) SetEventHandler(h func(method string, params json.RawMessage)) {
+	c.mu.Lock()
+	c.onEvent = h
+	c.mu.Unlock()
+}
+
+// Done is closed when the connection ends.
+func (c *cdpConn) Done() <-chan struct{} { return c.done }
+
+// devToolsPort returns the control port of a running profile.
+func devToolsPort(dir string) (string, error) {
+	b, err := os.ReadFile(devToolsPortFile(dir))
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+	return strings.TrimSpace(lines[0]), nil
+}
+
+// dialPage connects straight to one tab (page target) of a running profile.
+func dialPage(ctx context.Context, dir, targetID string) (*cdpConn, error) {
+	port, err := devToolsPort(dir)
+	if err != nil {
+		return nil, err
+	}
+	dctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ws, _, err := websocket.Dial(dctx, fmt.Sprintf("ws://127.0.0.1:%s/devtools/page/%s", port, targetID), nil)
+	if err != nil {
+		return nil, err
+	}
+	ws.SetReadLimit(64 << 20)
+	c := &cdpConn{ws: ws, pending: map[int64]chan cdpResp{}, done: make(chan struct{})}
+	go c.readLoop()
+	return c, nil
+}
+
+type pageTarget struct {
+	TargetID string `json:"targetId"`
+	Type     string `json:"type"`
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+}
+
+func pageTargets(ctx context.Context, c *cdpConn) ([]pageTarget, error) {
+	var t struct {
+		TargetInfos []pageTarget `json:"targetInfos"`
+	}
+	if err := c.Call(ctx, "Target.getTargets", nil, &t); err != nil {
+		return nil, err
+	}
+	var out []pageTarget
+	for _, ti := range t.TargetInfos {
+		if ti.Type == "page" && !strings.HasPrefix(ti.URL, "devtools://") && !strings.HasPrefix(ti.URL, "chrome-extension://") {
+			out = append(out, ti)
+		}
+	}
+	return out, nil
 }

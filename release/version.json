@@ -1,1 +1,1 @@
-{"version": "3.3", "sha256": "f9ab1474024e86f02da6b965d3b765b8e0e627f1596a464bdb3df399bdaf6718", "notes": "SỬA LỖI QUAN TRỌNG: chặn WebRTC làm lộ IP thật khi dùng proxy (Chrome mới bỏ qua cách chặn cũ). Đóng và mở lại các hồ sơ đang mở.", "file": "ChromeManager.exe"}
+{"version": "3.4", "sha256": "d3a7377288d3ff96ec790dd0271f3b81c26a25fe47fbf5118086feb50c8deae2", "notes": "Trung tâm Zalo: xem và chat nhiều Zalo từ xa qua trình duyệt (máy tính và điện thoại)", "file": "ChromeManager.exe"}

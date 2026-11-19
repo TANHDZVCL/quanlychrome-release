@@ -208,3 +208,9 @@ tbody td.muted { white-space: nowrap; }
 .totpbar { height: 4px; background: #262e3a; border-radius: 4px; margin-top: 6px; overflow: hidden; }
 .totpbar div { height: 100%; background: var(--green); transition: width 1s linear; }
 #fSort { min-width: 170px; }
+
+.hubstatus { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 13px; }
+.hubstatus .ok { color: var(--green); } .hubstatus .bad { color: var(--red); }
+.hublist { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; max-height: 220px; overflow: auto; color: var(--text); }
+.hublist label { display: flex; gap: 8px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+.hubury { font-size: 13px; align-self: center; }

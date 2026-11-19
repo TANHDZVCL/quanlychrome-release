@@ -45,6 +45,7 @@ type user struct {
 	AuthHash   string    `json:"authHash"`   // hex sha256(authKey); authKey is already an Argon2 output
 	WrappedKey string    `json:"wrappedKey"` // master key encrypted by the client, opaque to us
 	Created    time.Time `json:"created"`
+	HubHash    string    `json:"hubHash,omitempty"` // bcrypt of the "Trung tâm Zalo" password
 }
 
 type session struct {
@@ -274,6 +275,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/locks/{key}", s.auth(s.takeLock))
 	mux.HandleFunc("DELETE /api/locks/{key}", s.auth(s.releaseLock))
 	mux.HandleFunc("/api/vpn/", s.auth(s.vpn))
+	s.hubRoutes(mux)
 	return mux
 }
 

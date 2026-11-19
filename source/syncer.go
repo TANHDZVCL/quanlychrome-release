@@ -909,3 +909,10 @@ func (s *Syncer) markSite(id string, v int64, hash string) {
 	_ = s.saveLocked()
 	s.mu.Unlock()
 }
+
+// creds returns the server address, session token and device id.
+func (s *Syncer) creds() (string, string, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cfg.Server, s.cfg.Token, s.cfg.DeviceID
+}

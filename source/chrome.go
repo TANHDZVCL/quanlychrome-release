@@ -295,6 +295,14 @@ func (m *Manager) Open(id string, force bool) error {
 		"--enable-logging", // writes chrome_debug.log in the profile folder (for diagnosing)
 	}
 	args = append(args, langArgs(m.store.Settings().ChromeLang)...)
+	if hs := m.store.Settings().Hub; hs.Enabled {
+		for _, hid := range hs.Profiles {
+			if hid == id {
+				args = append(args, hubLaunchArgs()...)
+				break
+			}
+		}
+	}
 	if mb := cacheLimitMB(m.store.Settings().CacheMB); mb > 0 {
 		args = append(args, fmt.Sprintf("--disk-cache-size=%d", mb<<20))
 	}

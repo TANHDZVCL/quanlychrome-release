@@ -98,6 +98,10 @@ func closeByUserDataDir(dir string) error {
 	return nil
 }
 
+func openURL(u string) error {
+	return hidden(exec.Command("rundll32", "url.dll,FileProtocolHandler", u)).Start()
+}
+
 func openFolder(dir string) error {
 	return exec.Command("explorer.exe", dir).Start()
 }

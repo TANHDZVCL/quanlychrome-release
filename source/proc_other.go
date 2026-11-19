@@ -56,3 +56,5 @@ func closeByUserDataDir(dir string) error {
 }
 
 func openFolder(dir string) error { return exec.Command("xdg-open", dir).Start() }
+
+func openURL(u string) error { return exec.Command("xdg-open", u).Start() }

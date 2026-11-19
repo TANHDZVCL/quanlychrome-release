@@ -54,6 +54,7 @@
     <option value="size">Dung lượng lớn nhất</option>
   </select>
   <div class="spacer"></div>
+  <button class="btn" id="btnHub" title="Dùng Zalo trên máy này từ xa qua trình duyệt">💬 Trung tâm Zalo</button>
   <button class="btn" id="btnTile" title="Xếp cửa sổ Chrome đang mở thành lưới (đang chọn hồ sơ thì chỉ xếp các hồ sơ đó)">⊞ Xếp cửa sổ</button>
   <button class="btn ghost" id="btnTrash" title="Hồ sơ đã xóa (khôi phục trong 7 ngày)">🗑 <span id="trashCount">0</span></button>
   <button class="btn" id="btnVpn" title="Tạo proxy từ ExpressVPN trên VPS">
@@ -173,6 +174,39 @@
   </form>
 </dialog>
 <datalist id="groupList"></datalist>
+
+<!-- Zalo hub -->
+<dialog id="dlgHub" class="modal">
+  <form method="dialog" id="formHub">
+    <h2>Trung tâm Zalo</h2>
+    <p class="muted small">Bật trên <b>máy đang chứa các Zalo</b>. Sau đó từ máy khác hoặc điện thoại, mở trang bên dưới để xem và chat trên các Zalo này. Máy này phải bật, phần mềm phải mở và <b>không thu nhỏ (minimize)</b> cửa sổ Zalo.</p>
+    <div class="hubstatus" id="hubStatus"></div>
+    <label class="checkline"><input type="checkbox" id="hubOn"><span><b>Bật Trung tâm Zalo trên máy này</b></span></label>
+    <div class="field">Chọn hồ sơ Zalo (tối đa 12)
+      <div class="hublist" id="hubList"></div>
+    </div>
+    <p class="formerr" id="hubErr"></p>
+    <div class="actions"><button type="button" class="btn primary" id="hubSave">Lưu</button></div>
+
+    <fieldset class="proxybox">
+      <legend>Mật khẩu vào trang Trung tâm Zalo</legend>
+      <p class="muted small">Đăng nhập trang bằng <b>tên tài khoản đồng bộ</b> + mật khẩu này (khác mật khẩu đồng bộ). Đổi mật khẩu sẽ đăng xuất mọi nơi đang xem.</p>
+      <div class="row2">
+        <label class="field">Mật khẩu mới (ít nhất 8 ký tự) <input id="hubPass" type="password" autocomplete="new-password"></label>
+        <button type="button" class="btn" id="hubSetPass">Đặt mật khẩu</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="proxybox">
+      <legend>Địa chỉ trang</legend>
+      <div class="row2">
+        <code id="hubURL" class="hubury">—</code>
+        <span><button type="button" class="btn sm" id="hubCopy">Copy</button> <button type="button" class="btn sm" id="hubOpen">Mở</button></span>
+      </div>
+    </fieldset>
+    <div class="actions"><button type="button" class="btn ghost" data-close>Đóng</button></div>
+  </form>
+</dialog>
 
 <!-- Trash -->
 <dialog id="dlgTrash" class="modal">

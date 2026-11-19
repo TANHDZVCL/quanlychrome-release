@@ -50,7 +50,7 @@ func setupLog(dir string) {
 	log.Printf("===== khởi động %s =====", appVersion)
 }
 
-const appVersion = "3.3"
+const appVersion = "3.4"
 
 func main() {
 	cleanupAfterUpdate()
@@ -65,7 +65,7 @@ func main() {
 
 	tok := make([]byte, 16)
 	_, _ = rand.Read(tok)
-	srv := &Server{store: store, mgr: mgr, sync: syncer, token: hex.EncodeToString(tok)}
+	srv := &Server{store: store, mgr: mgr, sync: syncer, hub: NewHubAgent(mgr, store, syncer), token: hex.EncodeToString(tok)}
 
 	addr := "127.0.0.1:0"
 	if a := os.Getenv("CM_ADDR"); a != "" {

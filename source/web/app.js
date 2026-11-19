@@ -127,6 +127,7 @@ function render() {
   $("#trashCount").textContent = state.profiles.length - active.length;
   $("#btnTile").hidden = !active.some((p) => p.running);
   renderVpsBanner();
+  if ($("#dlgHub").open) renderHubStatus();
   $("#statRunning").textContent = state.profiles.filter((p) => p.running).length;
   $("#chromeWarn").hidden = !!state.chromePath;
   renderSyncBtn();
@@ -346,6 +347,47 @@ async function clearCache(ids) {
   } catch (e) { toast(e.message, "err"); }
   setTimeout(refresh, 1500);
 }
+
+// ---------- Zalo hub ----------
+function renderHubStatus() {
+  const h = state.hub || {};
+  const el = $("#hubStatus");
+  if (!h.enabled) el.innerHTML = '<span class="muted">Đang tắt trên máy này.</span>';
+  else if (h.connected) el.innerHTML = `<span class="ok">● Đã kết nối máy chủ</span> · ${h.viewers ? `<b>${h.viewers}</b> nơi đang xem` : "chưa có ai đang xem"}`;
+  else el.innerHTML = `<span class="bad">● Chưa kết nối</span>${h.error ? " — " + esc(h.error) : " — đang thử lại…"}`;
+  $("#hubURL").textContent = h.url && h.url.startsWith("http") ? h.url : "— (cần đăng nhập Đồng bộ)";
+}
+function openHub() {
+  if (!state.sync || !state.sync.enabled) { toast("Hãy đăng nhập Đồng bộ trước — Trung tâm Zalo chạy qua máy chủ đồng bộ", "err"); return; }
+  const hs = state.settings.hub || {};
+  const chosen = new Set(hs.profiles || []);
+  $("#hubOn").checked = !!hs.enabled;
+  $("#hubList").innerHTML = state.profiles.filter((p) => !p.trashedAt).map((p) =>
+    `<label><input type="checkbox" value="${esc(p.id)}" ${chosen.has(p.id) ? "checked" : ""}>${esc(p.name)}</label>`).join("") || '<span class="muted">Chưa có hồ sơ.</span>';
+  $("#hubErr").textContent = "";
+  $("#hubPass").value = "";
+  renderHubStatus();
+  $("#dlgHub").showModal();
+}
+$("#btnHub").addEventListener("click", openHub);
+$("#hubSave").addEventListener("click", (e) => busyBtn(e.target, async () => {
+  $("#hubErr").textContent = "";
+  const profiles = [...document.querySelectorAll("#hubList input:checked")].map((c) => c.value);
+  try {
+    await api("POST", "/api/hub/settings", { enabled: $("#hubOn").checked, profiles });
+  } catch (err) { $("#hubErr").textContent = err.message; return; }
+  const open = profiles.filter((id) => byId(id)?.running).length;
+  toast("Đã lưu Trung tâm Zalo" + (open ? `\n${open} hồ sơ đang mở: hãy đóng và mở lại để hình ảnh luôn cập nhật khi cửa sổ bị che.` : ""), "ok");
+}));
+$("#hubSetPass").addEventListener("click", (e) => busyBtn(e.target, async () => {
+  const pw = $("#hubPass").value;
+  if (pw.length < 8) throw new Error("Mật khẩu cần ít nhất 8 ký tự");
+  await api("POST", "/api/hub/password", { password: pw });
+  $("#hubPass").value = "";
+  toast("Đã đặt mật khẩu Trung tâm Zalo", "ok");
+}));
+$("#hubCopy").addEventListener("click", () => { navigator.clipboard.writeText($("#hubURL").textContent); toast("Đã copy địa chỉ", "ok"); });
+$("#hubOpen").addEventListener("click", () => api("POST", "/api/open-url").catch((err) => toast(err.message, "err")));
 
 // ---------- VPS expiry ----------
 function renderVpsBanner() {
@@ -1021,5 +1063,5 @@ $("#syLogout").addEventListener("click", async () => {
 refresh();
 setInterval(() => {
   const open = document.querySelector("dialog[open]");
-  if (!open || open.id === "dlgSync") refresh();
+  if (!open || open.id === "dlgSync" || open.id === "dlgHub") refresh();
 }, 2000);

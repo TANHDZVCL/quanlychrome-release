@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Trung tâm Zalo</title>
+<style>
+:root { --bg:#0f1218; --panel:#161b23; --panel2:#1c222c; --line:#262e3a; --text:#e6eaf0; --muted:#8a94a6; --accent:#4f8cff; --green:#2fbf71; --red:#ef5350; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+body { display: flex; flex-direction: column; overflow: hidden; }
+[hidden] { display: none !important; }
+button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 6px 12px; }
+button:hover { background: #242c38; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+input { font: inherit; width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; outline: none; }
+input:focus { border-color: var(--accent); }
+.top { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.top h1 { font-size: 16px; margin: 0; }
+.chip { background: #1d2a40; color: #9cc0ff; border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+.sp { flex: 1; }
+.st-ok { color: #7ee2aa; font-size: 13px; } .st-bad { color: #ff9b98; font-size: 13px; }
+#tabs { display: none; gap: 6px; padding: 6px 10px; overflow-x: auto; background: var(--panel); border-bottom: 1px solid var(--line); }
+#tabs button { white-space: nowrap; }
+#tabs button.on { border-color: var(--accent); color: #fff; }
+#app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#grid { flex: 1; display: grid; gap: 10px; padding: 10px; min-height: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.panel.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.35); }
+.ph { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-weight: 600; }
+.ph .tools { margin-left: auto; display: flex; gap: 4px; }
+.ph .tools button { padding: 2px 8px; font-size: 12px; font-weight: 400; }
+.badge { background: var(--red); color: #fff; border-radius: 999px; padding: 0 8px; font-size: 12px; }
+.pmuted { color: var(--muted); font-weight: 400; font-size: 12px; }
+.screen { position: relative; flex: 1; min-height: 0; background: #0b0e13; touch-action: none; user-select: none; -webkit-user-select: none; }
+.screen img { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-drag: none; }
+.placeholder { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 20px; }
+#login { margin: auto; width: min(380px, 92vw); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+#login h2 { margin: 0 0 4px; }
+.err { color: #ff9b98; min-height: 1em; font-size: 13px; }
+#kbd { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; resize: none; }
+#typebar { display: none; gap: 6px; padding: 8px; background: var(--panel); border-top: 1px solid var(--line); }
+@media (max-width: 800px) {
+  #tabs { display: flex; }
+  #grid { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; padding: 6px; }
+  .panel:not(.active) { display: none; }
+  #typebar { display: flex; }
+}
+</style>
+</head>
+<body>
+<div id="login" hidden>
+  <h2>Trung tâm Zalo</h2>
+  <div class="pmuted">Đăng nhập bằng tên tài khoản đồng bộ và mật khẩu Trung tâm Zalo.</div>
+  <input id="lgUser" placeholder="Tên đăng nhập" autocomplete="username">
+  <input id="lgPass" type="password" placeholder="Mật khẩu Trung tâm Zalo" autocomplete="current-password">
+  <div class="err" id="lgErr"></div>
+  <button class="primary" id="lgBtn">Đăng nhập</button>
+</div>
+
+<div id="app" hidden>
+  <div class="top">
+    <h1>Trung tâm Zalo</h1>
+    <span class="chip" id="agentName">—</span>
+    <span id="agentSt" class="st-bad">● Đang kết nối…</span>
+    <span class="sp"></span>
+    <button id="notifBtn">🔔 Bật thông báo</button>
+    <button id="logoutBtn">Đăng xuất</button>
+  </div>
+  <div id="tabs"></div>
+  <div id="grid"></div>
+  <div id="typebar">
+    <input id="typeIn" placeholder="Nhập tin rồi bấm Gửi">
+    <button class="primary" id="typeSend">Gửi</button>
+  </div>
+</div>
+<textarea id="kbd" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+let panels = [];            // [{id,name,running,title,unread}]
+const els = {};             // id -> panel elements
+const meta = {};            // id -> {w,h} page size in CSS px
+let active = null;
+let es = null;
+const lastUnread = {};
+let notifOn = localStorage.getItem("hubNotif") === "1";
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" });
+  if (r.status === 401) { showLogin(); throw new Error("401"); }
+  return r;
+}
+// Inputs go out in order: while one request is on its way, new ones are
+// collected and sent together as a batch.
+let outQ = [], sending = false;
+function send(msg) { outQ.push(msg); if (!sending) flush(); }
+async function flush() {
+  sending = true;
+  while (outQ.length) {
+    const batch = outQ.splice(0, 200);
+    try { await post("/hub/input", batch); } catch {}
+  }
+  sending = false;
+}
+
+// ---------- login ----------
+function showLogin() {
+  if (es) { es.close(); es = null; }
+  $("#app").hidden = true;
+  $("#login").hidden = false;
+  $("#lgUser").value = localStorage.getItem("hubUser") || "";
+  ($("#lgUser").value ? $("#lgPass") : $("#lgUser")).focus();
+}
+async function doLogin() {
+  $("#lgErr").textContent = "";
+  const username = $("#lgUser").value.trim(), password = $("#lgPass").value;
+  const r = await fetch("/hub/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }), credentials: "same-origin" });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { $("#lgErr").textContent = j.error || "Lỗi " + r.status; return; }
+  localStorage.setItem("hubUser", username);
+  $("#lgPass").value = "";
+  start();
+}
+$("#lgBtn").onclick = doLogin;
+$("#lgPass").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+$("#logoutBtn").onclick = async () => { await fetch("/hub/logout", { method: "POST" }); showLogin(); };
+
+// ---------- notifications ----------
+function renderNotifBtn() { $("#notifBtn").textContent = notifOn ? "🔔 Thông báo: bật" : "🔕 Bật thông báo"; }
+$("#notifBtn").onclick = async () => {
+  if (!notifOn && "Notification" in window && Notification.permission !== "granted") {
+    try { await Notification.requestPermission(); } catch {}
+  }
+  notifOn = !notifOn;
+  localStorage.setItem("hubNotif", notifOn ? "1" : "0");
+  renderNotifBtn();
+  if (notifOn) beep();
+};
+let audioCtx;
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = 880; g.gain.value = 0.08;
+    o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.18);
+  } catch {}
+}
+function notify(p, n) {
+  if (!notifOn) return;
+  beep();
+  if ("Notification" in window && Notification.permission === "granted" && (document.hidden || active !== p.id)) {
+    const nt = new Notification(p.name, { body: `${n} tin nhắn chưa đọc`, tag: "zalo-" + p.id });
+    nt.onclick = () => { window.focus(); setActive(p.id); nt.close(); };
+  }
+}
+
+// ---------- stream ----------
+async function start() {
+  const r = await fetch("/hub/me", { credentials: "same-origin" });
+  if (r.status === 401) { showLogin(); return; }
+  const me = await r.json().catch(() => ({}));
+  $("#login").hidden = true;
+  $("#app").hidden = false;
+  renderNotifBtn();
+  setAgent(!!me.online, me.agentName);
+  if (es) es.close();
+  es = new EventSource("/hub/stream");
+  es.onopen = () => send({ t: "hello" });
+  es.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.t === "agent") setAgent(m.online, m.name);
+    else if (m.t === "panels") setPanels(m.items || []);
+    else if (m.t === "frame") setFrame(m);
+    else if (m.t === "error") alert(m.error);
+  };
+  es.onerror = async () => {
+    const c = await fetch("/hub/me", { credentials: "same-origin" }).catch(() => null);
+    if (c && c.status === 401) showLogin();
+  };
+}
+
+function setAgent(online, name) {
+  $("#agentSt").className = online ? "st-ok" : "st-bad";
+  $("#agentSt").textContent = online ? "● Máy chứa Zalo đang kết nối" : "● Máy chứa Zalo đang tắt hoặc mất kết nối";
+  if (name) $("#agentName").textContent = "máy: " + name;
+  if (!online) { panels.forEach((p) => (p.running = false)); renderPanels(); }
+}
+
+function setPanels(items) {
+  for (const p of items) {
+    const before = lastUnread[p.id] || 0;
+    if (p.unread > before) notify(p, p.unread);
+    lastUnread[p.id] = p.unread;
+  }
+  panels = items;
+  if (!active || !panels.find((p) => p.id === active)) active = panels[0] && panels[0].id;
+  renderPanels();
+}
+
+function layout() {
+  const n = Math.max(1, panels.length);
+  const cols = n === 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
+  const rows = Math.ceil(n / cols);
+  $("#grid").style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  $("#grid").style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+}
+
+const escapeHTML = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function renderPanels() {
+  layout();
+  const grid = $("#grid");
+  const ids = new Set(panels.map((p) => p.id));
+  for (const id of Object.keys(els)) if (!ids.has(id)) { els[id].root.remove(); delete els[id]; }
+  panels.forEach((p, i) => {
+    let e = els[p.id];
+    if (!e) e = els[p.id] = makePanel(p.id);
+    if (grid.children[i] !== e.root) grid.insertBefore(e.root, grid.children[i] || null); // keeps order
+    e.name.textContent = p.name;
+    e.badge.hidden = !p.unread;
+    e.badge.textContent = p.unread;
+    e.status.textContent = p.running ? "" : "đang đóng";
+    const showPic = p.running && !!meta[p.id];
+    e.ph.hidden = showPic;
+    e.img.hidden = !showPic;
+    const html = p.running ? "Đang tải hình ảnh…<br><small>Nếu chờ lâu: cửa sổ Zalo trên máy chứa Zalo có thể đang bị thu nhỏ (minimize).</small>"
+      : `Hồ sơ đang đóng trên máy chứa Zalo.<br><br><button data-open="${p.id}">Mở hồ sơ này</button>`;
+    if (e.ph.dataset.html !== html) { e.ph.innerHTML = html; e.ph.dataset.html = html; }
+    e.root.classList.toggle("active", p.id === active);
+  });
+  $("#tabs").innerHTML = panels.map((p) => `<button data-tab="${p.id}" class="${p.id === active ? "on" : ""}">${escapeHTML(p.name)}${p.unread ? ` (${p.unread})` : ""}</button>`).join("");
+}
+
+$("#tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) setActive(b.dataset.tab); });
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) { send({ t: "open", p: b.dataset.open }); b.textContent = "Đang mở…"; } });
+
+function setActive(id) { active = id; renderPanels(); }
+
+function makePanel(id) {
+  const root = document.createElement("div");
+  root.className = "panel";
+  root.innerHTML = `<div class="ph"><span class="nm"></span><span class="badge" hidden></span><span class="pmuted st"></span>
+    <span class="tools"><button data-a="zalo" title="Mở lại trang Zalo">Zalo</button><button data-a="reload" title="Tải lại trang">↻</button></span></div>
+    <div class="screen"><img alt="" hidden><div class="placeholder"></div></div>`;
+  const e = { root, name: root.querySelector(".nm"), badge: root.querySelector(".badge"), status: root.querySelector(".st"),
+    img: root.querySelector("img"), ph: root.querySelector(".placeholder"), screen: root.querySelector(".screen") };
+  root.querySelector(".tools").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-a]"); if (b) send({ t: b.dataset.a, p: id });
+  });
+  root.addEventListener("pointerdown", () => { if (active !== id) setActive(id); });
+  bindInput(id, e);
+  return e;
+}
+
+function setFrame(m) {
+  const first = !meta[m.p];
+  meta[m.p] = { w: m.w, h: m.h };
+  const e = els[m.p];
+  if (!e) return;
+  e.img.src = "data:image/jpeg;base64," + m.d;
+  if (first) renderPanels();
+}
+
+// ---------- input ----------
+// page coordinates (CSS px of the remote tab) from a pointer position
+function toPage(id, e, ev) {
+  const r = e.img.getBoundingClientRect();
+  const nw = e.img.naturalWidth, nh = e.img.naturalHeight, m = meta[id];
+  if (!nw || !m) return null;
+  const s = Math.min(r.width / nw, r.height / nh);
+  const dw = nw * s, dh = nh * s, ox = (r.width - dw) / 2, oy = (r.height - dh) / 2;
+  const x = (ev.clientX - r.left - ox) / dw, y = (ev.clientY - r.top - oy) / dh;
+  if (x < 0 || y < 0 || x > 1 || y > 1) return null;
+  return { x: Math.round(x * m.w), y: Math.round(y * m.h) };
+}
+const mods = (ev) => (ev.altKey ? 1 : 0) | (ev.ctrlKey ? 2 : 0) | (ev.metaKey ? 4 : 0) | (ev.shiftKey ? 8 : 0);
+
+function bindInput(id, e) {
+  const sc = e.screen;
+  let touch = null, lastMove = 0;
+  sc.addEventListener("contextmenu", (ev) => ev.preventDefault());
+  sc.addEventListener("pointerdown", (ev) => {
+    const pt = toPage(id, e, ev); if (!pt) return;
+    focusKbd();
+    if (ev.pointerType === "touch") { touch = { x: ev.clientX, y: ev.clientY, pt, moved: false }; return; }
+    ev.preventDefault(); // keep the keyboard focus on the hidden text box
+    sc.setPointerCapture(ev.pointerId);
+    send({ t: "mouse", p: id, type: "mousePressed", ...pt, button: ev.button === 2 ? "right" : "left", clicks: ev.detail || 1, mods: mods(ev) });
+  });
+  sc.addEventListener("pointermove", (ev) => {
+    if (touch && ev.pointerType === "touch") {
+      const dy = ev.clientY - touch.y, dx = ev.clientX - touch.x;
+      if (!touch.moved && Math.hypot(dx, dy) < 10) return;
+      touch.moved = true;
+      send({ t: "mouse", p: id, type: "mouseWheel", ...touch.pt, dx: -dx * 2, dy: -dy * 2 });
+      touch.x = ev.clientX; touch.y = ev.clientY;
+      return;
+    }
+    if (!ev.buttons) return; // only while dragging (text selection)
+    const now = Date.now(); if (now - lastMove < 40) return; lastMove = now;
+    const pt = toPage(id, e, ev); if (pt) send({ t: "mouse", p: id, type: "mouseMoved", ...pt, mods: mods(ev) });
+  });
+  sc.addEventListener("pointerup", (ev) => {
+    if (ev.pointerType === "touch") {
+      if (touch && !touch.moved) {
+        send({ t: "mouse", p: id, type: "mousePressed", ...touch.pt, button: "left", clicks: 1 });
+        send({ t: "mouse", p: id, type: "mouseReleased", ...touch.pt, button: "left", clicks: 1 });
+      }
+      touch = null; return;
+    }
+    const pt = toPage(id, e, ev); if (!pt) return;
+    send({ t: "mouse", p: id, type: "mouseReleased", ...pt, button: ev.button === 2 ? "right" : "left", clicks: ev.detail || 1, mods: mods(ev) });
+  });
+  sc.addEventListener("wheel", (ev) => {
+    ev.preventDefault();
+    const pt = toPage(id, e, ev); if (!pt) return;
+    send({ t: "mouse", p: id, type: "mouseWheel", ...pt, dx: ev.deltaX, dy: ev.deltaY });
+  }, { passive: false });
+}
+
+// keyboard: printable text arrives through the hidden textarea (works with
+// Vietnamese input methods); special keys are forwarded as key events.
+const kbd = $("#kbd");
+function focusKbd() { if (window.matchMedia("(max-width: 800px)").matches) return; kbd.focus({ preventScroll: true }); }
+const SPECIAL = { Enter: 13, Backspace: 8, Delete: 46, Tab: 9, Escape: 27, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, PageUp: 33, PageDown: 34 };
+function sendKey(ev) {
+  const keyCode = SPECIAL[ev.key] || ev.keyCode || 0;
+  const text = ev.key === "Enter" ? "\r" : "";
+  send({ t: "key", p: active, type: text ? "keyDown" : "rawKeyDown", key: ev.key, code: ev.code, keyCode, text, mods: mods(ev) });
+  send({ t: "key", p: active, type: "keyUp", key: ev.key, code: ev.code, keyCode, mods: mods(ev) });
+}
+let composing = false;
+kbd.addEventListener("compositionstart", () => (composing = true));
+kbd.addEventListener("compositionend", (ev) => { composing = false; if (ev.data && active) send({ t: "text", p: active, text: ev.data }); kbd.value = ""; });
+kbd.addEventListener("keydown", (ev) => {
+  if (!active || composing || ev.isComposing) return;
+  const combo = (ev.ctrlKey || ev.metaKey) && ev.key.length === 1 && ev.key.toLowerCase() !== "v";
+  if (SPECIAL[ev.key] || combo) { ev.preventDefault(); sendKey(ev); }
+});
+kbd.addEventListener("input", () => {
+  if (composing || !active) return;
+  if (kbd.value) send({ t: "text", p: active, text: kbd.value });
+  kbd.value = "";
+});
+kbd.addEventListener("paste", (ev) => {
+  const t = ev.clipboardData && ev.clipboardData.getData("text");
+  ev.preventDefault();
+  if (t && active) send({ t: "text", p: active, text: t });
+});
+
+// phone: type in the bar, then send (Enter)
+function sendTyped() {
+  const v = $("#typeIn").value;
+  if (!active) return;
+  if (v) send({ t: "text", p: active, text: v });
+  send({ t: "key", p: active, type: "keyDown", key: "Enter", code: "Enter", keyCode: 13, text: "\r" });
+  send({ t: "key", p: active, type: "keyUp", key: "Enter", code: "Enter", keyCode: 13 });
+  $("#typeIn").value = "";
+}
+$("#typeSend").onclick = sendTyped;
+$("#typeIn").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendTyped(); } });
+
+start();
+</script>
+</body>
+</html>
