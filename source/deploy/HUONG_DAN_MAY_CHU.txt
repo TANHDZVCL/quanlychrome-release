@@ -1,0 +1,66 @@
+MÁY CHỦ ĐỒNG BỘ - HƯỚNG DẪN CÀI ĐẶT
+====================================
+
+BƯỚC 1: TRỎ TÊN MIỀN Ở TENTEN (làm trước, vì cần 5–30 phút để có hiệu lực)
+1. Đăng nhập trang quản trị Tenten (tenten.vn), vào "Quản lý tên miền".
+2. Chọn tên miền nguyentuananh.site, vào mục "Quản lý DNS" / "Cấu hình bản ghi".
+3. Bấm "Thêm bản ghi" và điền:
+      Loại (Type) : A
+      Tên (Host)  : sync
+      Giá trị     : 49.236.211.75
+      TTL         : để mặc định (hoặc 300)
+4. Lưu lại.
+   Lưu ý: nếu tên miền đang dùng DNS của Cloudflare (nameserver *.cloudflare.com)
+   thì phải thêm bản ghi trên Cloudflare, không phải Tenten. Khi thêm trên
+   Cloudflare, để đám mây màu XÁM (DNS only).
+
+BƯỚC 2: ĐƯA FILE LÊN VPS (trên máy tính Windows, mở PowerShell)
+   cd $HOME\Downloads
+   scp .\chrome-sync-server.tar.gz root@49.236.211.75:/root/
+
+BƯỚC 3: CÀI (đăng nhập VPS rồi chạy)
+   ssh root@49.236.211.75
+   cd /root && tar xzf chrome-sync-server.tar.gz && cd chrome-sync-server
+   bash install.sh sync.nguyentuananh.site
+
+   Cuối cùng màn hình sẽ in ra:
+     Địa chỉ máy chủ : https://sync.nguyentuananh.site
+     Mã đăng ký      : xxxxxxxxxxxx
+   Ghi lại MÃ ĐĂNG KÝ. Khi tạo tài khoản lần đầu trong phần mềm sẽ cần mã này.
+   Xem lại mã bất cứ lúc nào: cat /opt/chrome-sync/env
+
+   Nếu báo "Chưa lấy được HTTPS": DNS chưa cập nhật, đợi thêm rồi chạy lại lệnh cài.
+   Script không đụng tới website / bot đang chạy: chỉ thêm một cấu hình nginx mới
+   cho riêng tên miền sync.
+
+BƯỚC 4: TRONG PHẦN MỀM QUẢN LÝ CHROME
+   Bấm nút "Đồng bộ: tắt" ở góc trên, chọn "Chưa có tài khoản? Tạo mới",
+   nhập tên đăng nhập, mật khẩu (ghi lại cẩn thận) và mã đăng ký.
+   Các máy khác: tải phần mềm, bấm Đồng bộ, đăng nhập cùng tài khoản.
+
+-------------------------------------------------------------------
+KIỂM TRA / XỬ LÝ SỰ CỐ
+   systemctl status chrome-sync          (đang chạy chưa)
+   journalctl -u chrome-sync -n 50       (xem log)
+   curl https://sync.nguyentuananh.site/api/ping
+
+CẬP NHẬT PHIÊN BẢN MỚI
+   Giải nén bản mới rồi chạy lại: bash install.sh sync.nguyentuananh.site
+   (dữ liệu và mã đăng ký được giữ nguyên)
+
+SAO LƯU DỮ LIỆU MÁY CHỦ
+   tar czf /root/chrome-sync-data-$(date +%F).tar.gz -C /opt/chrome-sync data env
+   Rồi tải file đó về máy:  scp root@49.236.211.75:/root/chrome-sync-data-*.tar.gz .
+   (Dữ liệu đã được mã hóa bằng mật khẩu của bạn, người khác không đọc được.)
+
+CHUYỂN SANG VPS MỚI
+   1. VPS cũ: tạo file sao lưu như trên, tải về máy.
+   2. VPS mới: cài như BƯỚC 2–3 (tạm thời lỗi HTTPS cũng được).
+   3. Đưa file sao lưu lên VPS mới rồi:
+        systemctl stop chrome-sync
+        tar xzf chrome-sync-data-*.tar.gz -C /opt/chrome-sync
+        chown -R chromesync:chromesync /opt/chrome-sync/data
+        systemctl start chrome-sync
+   4. Ở Tenten sửa bản ghi A "sync" sang IP của VPS mới.
+   5. Đợi DNS cập nhật rồi chạy lại: bash install.sh sync.nguyentuananh.site
+   Các máy tính KHÔNG cần cài lại hay đăng nhập lại.

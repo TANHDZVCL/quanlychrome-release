@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản lý Chrome</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="icon.png">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <img src="icon.png" class="logo" alt="">
+    <h1>Quản lý Chrome</h1>
+  </div>
+  <div class="stats">
+    <div class="stat"><span id="statTotal">0</span><small>hồ sơ</small></div>
+    <div class="stat running"><span id="statRunning">0</span><small>đang mở</small></div>
+  </div>
+  <button class="btn success" id="btnUpdate" hidden title="Có bản mới trên máy chủ của bạn"></button>
+  <button class="btn ghost syncbtn" id="btnSync" title="Đồng bộ online">
+    <svg viewBox="0 0 24 24"><path d="M17.5 19a4.5 4.5 0 1 0-1.3-8.8A6 6 0 0 0 4.6 12.5 3.5 3.5 0 0 0 6.5 19Z"/></svg>
+    <span class="sdot" id="syncDot"></span><span id="syncLabel">Đồng bộ: tắt</span>
+  </button>
+  <button class="btn ghost" id="btnSettings" title="Cài đặt">
+    <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+    Cài đặt
+  </button>
+</header>
+
+<div id="chromeWarn" class="banner" hidden>
+  Không tìm thấy Google Chrome trên máy. Hãy cài Chrome hoặc vào <a href="#" id="warnSettings">Cài đặt</a> để chọn file <code>chrome.exe</code>.
+</div>
+
+<section class="toolbar">
+  <div class="search">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="Tìm theo tên, nhóm, ghi chú, proxy…">
+  </div>
+  <select id="fGroup"><option value="">Tất cả nhóm</option></select>
+  <select id="fStatus">
+    <option value="">Mọi trạng thái</option>
+    <option value="on">Đang mở</option>
+    <option value="off">Đã đóng</option>
+  </select>
+  <div class="spacer"></div>
+  <button class="btn" id="btnVpn" title="Tạo proxy từ ExpressVPN trên VPS">
+    <svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6Z"/></svg>Proxy VPN</button>
+  <button class="btn primary" id="btnNew"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Tạo hồ sơ</button>
+</section>
+
+<section class="bulkbar" id="bulkbar" hidden>
+  <span id="selCount">0 đã chọn</span>
+  <button class="btn sm success" data-bulk="open">Mở</button>
+  <button class="btn sm" data-bulk="close">Đóng</button>
+  <button class="btn sm" data-bulk="check">Kiểm tra proxy</button>
+  <button class="btn sm" data-bulk="proxy">Gán proxy</button>
+  <button class="btn sm" data-bulk="group">Đổi nhóm</button>
+  <button class="btn sm danger" data-bulk="delete">Xóa</button>
+  <button class="btn sm ghost" data-bulk="clear">Bỏ chọn</button>
+</section>
+
+<main class="tablewrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="c-check"><input type="checkbox" id="checkAll" title="Chọn tất cả"></th>
+        <th>Hồ sơ</th>
+        <th>Nhóm</th>
+        <th>Proxy</th>
+        <th>Trạng thái</th>
+        <th>Mở lần cuối</th>
+        <th class="c-act"></th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="empty" id="empty" hidden>
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/></svg>
+    <p id="emptyText">Chưa có hồ sơ nào.</p>
+    <button class="btn primary" id="btnNew2">Tạo hồ sơ đầu tiên</button>
+  </div>
+</main>
+
+<!-- Profile form -->
+<dialog id="dlgProfile" class="modal">
+  <form method="dialog" id="formProfile">
+    <h2 id="pfTitle">Tạo hồ sơ</h2>
+    <div class="grid2">
+      <label class="field"><span>Tên hồ sơ <b>*</b></span>
+        <input name="name" required maxlength="80" placeholder="VD: Facebook bán hàng">
+      </label>
+      <label class="field" id="countField">Số lượng
+        <input name="count" type="number" min="1" max="200" value="1">
+        <small>Tạo nhiều sẽ đánh số: Tên 1, Tên 2…</small>
+      </label>
+      <label class="field">Nhóm
+        <input name="group" list="groupList" maxlength="60" placeholder="VD: Khách hàng A">
+      </label>
+      <label class="field">Trang mở khi khởi động
+        <input name="startUrl" placeholder="VD: facebook.com">
+      </label>
+    </div>
+    <label class="field">Ghi chú
+      <textarea name="notes" rows="2" maxlength="1000" placeholder="Tài khoản, mục đích sử dụng…"></textarea>
+    </label>
+    <label class="field">Tiện ích cài sẵn — dán link Chrome Web Store, mỗi dòng 1 link
+      <textarea name="exts" rows="2" placeholder="https://chromewebstore.google.com/detail/get-token-cookie/naciaagbkifhpnoodlkhbejjldaiffcm"></textarea>
+      <small>Lần đầu mở hồ sơ trên một máy, phần mềm tự mở sẵn trang các tiện ích này — bấm "Thêm vào Chrome" là xong (Chrome không cho cài ngầm).</small>
+    </label>
+
+    <fieldset class="proxybox">
+      <legend>Proxy</legend>
+      <label class="field" id="pfVpnField" hidden>Chọn proxy VPN có sẵn
+        <select id="pfVpn"><option value="">— Chọn —</option></select>
+      </label>
+      <label class="field">Dán nhanh
+        <input id="pfPaste" placeholder="host:port:user:pass  hoặc  socks5://user:pass@host:port">
+      </label>
+      <div class="grid-proxy">
+        <label class="field">Loại
+          <select name="ptype">
+            <option value="">Không dùng</option>
+            <option value="http">HTTP</option>
+            <option value="socks5">SOCKS5</option>
+          </select>
+        </label>
+        <label class="field">Host / IP <input name="phost" placeholder="1.2.3.4"></label>
+        <label class="field">Cổng <input name="pport" type="number" min="1" max="65535" placeholder="8080"></label>
+        <label class="field">Tài khoản <input name="puser" autocomplete="off"></label>
+        <label class="field">Mật khẩu <input name="ppass" type="password" autocomplete="off"></label>
+      </div>
+      <div class="checkrow">
+        <button type="button" class="btn sm" id="pfCheck">Kiểm tra proxy</button>
+        <span id="pfCheckRes" class="muted"></span>
+      </div>
+    </fieldset>
+
+    <p class="formerr" id="pfErr"></p>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Hủy</button>
+      <button type="submit" class="btn primary" id="pfSave">Lưu</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="groupList"></datalist>
+
+<!-- Clone -->
+<dialog id="dlgClone" class="modal small">
+  <form method="dialog" id="formClone">
+    <h2>Nhân bản hồ sơ</h2>
+    <p class="muted small">Từ: <b id="clSrc"></b></p>
+    <p class="muted small"><b>Sao chép:</b> tiện ích + dữ liệu tiện ích, cài đặt Chrome.<br>
+      <b>Không sao chép:</b> cookie, đăng nhập, mật khẩu, lịch sử, dấu trang, dữ liệu web.</p>
+    <div class="grid2">
+      <label class="field">Tên <input name="name" required maxlength="80"></label>
+      <label class="field">Số lượng <input name="count" type="number" min="1" max="50" value="1"></label>
+    </div>
+    <label class="field">Nhóm <input name="group" list="groupList" maxlength="60"></label>
+    <label class="checkline"><input type="checkbox" name="copyProxy"><span>Dùng chung proxy với hồ sơ gốc <span class="muted small">(thường nên để trống để mỗi hồ sơ một proxy riêng)</span></span></label>
+    <p class="formerr" id="clErr"></p>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Hủy</button>
+      <button type="submit" class="btn primary" id="clSubmit">Nhân bản</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Bulk proxy -->
+<dialog id="dlgProxy" class="modal">
+  <form method="dialog" id="formProxy">
+    <h2>Gán proxy cho <span id="bpCount">0</span> hồ sơ</h2>
+    <label class="field">Loại mặc định (khi dòng không ghi rõ)
+      <select name="type">
+        <option value="http">HTTP</option>
+        <option value="socks5">SOCKS5</option>
+      </select>
+    </label>
+    <label class="field">Danh sách proxy, mỗi dòng một proxy
+      <textarea name="text" rows="8" placeholder="1.2.3.4:8080&#10;1.2.3.5:8080:user:pass&#10;user:pass@1.2.3.6:1080&#10;socks5://user:pass@1.2.3.7:1080"></textarea>
+    </label>
+    <p class="muted small">Proxy được gán lần lượt theo thứ tự hồ sơ; nếu ít proxy hơn hồ sơ thì quay vòng lại từ đầu. <b>Để trống</b> = gỡ proxy khỏi các hồ sơ đã chọn. Hồ sơ đang mở cần đóng và mở lại để nhận proxy mới.</p>
+    <p class="formerr" id="bpErr"></p>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Hủy</button>
+      <button type="submit" class="btn primary">Gán proxy</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Change group -->
+<dialog id="dlgGroup" class="modal small">
+  <form method="dialog" id="formGroup">
+    <h2>Đổi nhóm cho <span id="bgCount">0</span> hồ sơ</h2>
+    <label class="field">Tên nhóm (để trống = không nhóm)
+      <input name="group" list="groupList" maxlength="60">
+    </label>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Hủy</button>
+      <button type="submit" class="btn primary">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Settings -->
+<dialog id="dlgSettings" class="modal">
+  <form method="dialog" id="formSettings">
+    <h2>Cài đặt</h2>
+    <label class="field">Đường dẫn chrome.exe (để trống = tự tìm)
+      <input name="chromePath" placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe">
+    </label>
+    <p class="muted small">Đang dùng: <code id="setChrome">—</code> · Phiên bản phần mềm: <b id="setVersion">—</b></p>
+    <label class="checkline"><input type="checkbox" name="allowMultiOpen">
+      <span><b>Cho phép mở cùng lúc trên nhiều máy</b><br>
+      <span class="muted small">Khi bật, một hồ sơ đang mở ở máy khác vẫn mở được ở máy này; cookie của các máy được gộp lại. Lưu ý: Facebook/Google có thể bắt xác minh khi một phiên đăng nhập dùng ở nhiều nơi cùng lúc — nên dùng chung proxy.</span></span>
+    </label>
+    <p class="muted small">Thư mục dữ liệu: <code id="setData">—</code><br>
+      Mỗi hồ sơ là một thư mục Chrome riêng (cookie, đăng nhập, tiện ích tách biệt). Sao lưu cả thư mục này để giữ toàn bộ hồ sơ.</p>
+    <p class="formerr" id="setErr"></p>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Đóng</button>
+      <button type="submit" class="btn primary">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Confirm -->
+<dialog id="dlgConfirm" class="modal small">
+  <form method="dialog">
+    <h2 id="cfTitle">Xác nhận</h2>
+    <p id="cfText"></p>
+    <div class="actions">
+      <button value="no" class="btn ghost">Hủy</button>
+      <button value="yes" class="btn danger" id="cfYes">Đồng ý</button>
+    </div>
+  </form>
+</dialog>
+
+
+<!-- Proxy VPN -->
+<dialog id="dlgVpn" class="modal wide">
+  <form method="dialog" id="formVpn">
+    <h2>Proxy VPN (ExpressVPN trên VPS)</h2>
+    <p class="muted small">Mỗi proxy là một kết nối ExpressVPN riêng chạy trên VPS của bạn → mỗi hồ sơ Chrome đi ra một IP khác nhau. ExpressVPN giới hạn số thiết bị kết nối cùng lúc (thường 8), mỗi proxy tính là 1 thiết bị.</p>
+    <p class="formerr" id="vpErr"></p>
+
+    <fieldset class="proxybox" id="vpCredsBox">
+      <legend>Tài khoản ExpressVPN (cấu hình thủ công)</legend>
+      <p class="muted small" id="vpCredsInfo"></p>
+      <div id="vpCredsForm">
+        <p class="muted small">Lấy tại expressvpn.com → đăng nhập → <b>Set up other devices</b> → <b>Manual Configuration</b> → tab <b>OpenVPN</b> → copy <b>Username</b> và <b>Password</b> (khác mật khẩu đăng nhập web). Thông tin chỉ lưu trên VPS của bạn.</p>
+        <div class="row3">
+          <label class="field">Username <input id="vpUser" autocomplete="off"></label>
+          <label class="field">Password <input id="vpPass" type="password" autocomplete="off"></label>
+          <button type="button" class="btn primary" id="vpSaveCreds">Lưu</button>
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="row3 vpcreate" id="vpCreate">
+      <label class="field">Quốc gia <select id="vpCountry"></select></label>
+      <label class="field">Tên gợi nhớ (tùy chọn) <input id="vpName" maxlength="60" placeholder="VD: Proxy FB 1"></label>
+      <button type="button" class="btn primary" id="vpAdd">Tạo proxy</button>
+    </div>
+
+    <div class="tablewrap mini">
+      <table>
+        <thead><tr><th>Proxy</th><th>Địa chỉ</th><th>IP hiện tại</th><th>Trạng thái</th><th>Đang dùng</th><th></th></tr></thead>
+        <tbody id="vpRows"></tbody>
+      </table>
+      <div class="empty small" id="vpEmpty">Chưa có proxy nào.</div>
+    </div>
+    <pre class="logbox" id="vpLog" hidden></pre>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Đóng</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Sync login -->
+<dialog id="dlgLogin" class="modal small">
+  <form method="dialog" id="formLogin">
+    <h2 id="lgTitle">Đăng nhập đồng bộ</h2>
+    <p class="muted small" id="lgIntro">Đăng nhập cùng một tài khoản trên mọi máy để dùng chung hồ sơ và giữ trạng thái đăng nhập web.</p>
+    <label class="field">Máy chủ <input name="server" placeholder="https://49-236-211-75.sslip.io"></label>
+    <label class="field">Tên đăng nhập <input name="username" autocomplete="username" placeholder="chữ thường không dấu, số"></label>
+    <label class="field">Mật khẩu <input name="password" type="password" autocomplete="current-password"></label>
+    <div id="lgRegister" hidden>
+      <label class="field">Nhập lại mật khẩu <input name="password2" type="password" autocomplete="new-password"></label>
+      <label class="field">Mã đăng ký (lấy khi cài máy chủ) <input name="code" autocomplete="off"></label>
+      <p class="warnbox">Mật khẩu này dùng để <b>mã hóa</b> dữ liệu. Quên mật khẩu = <b>mất toàn bộ dữ liệu đồng bộ</b>, không ai khôi phục được. Hãy ghi lại ở nơi an toàn.</p>
+    </div>
+    <p class="formerr" id="lgErr"></p>
+    <div class="actions spread">
+      <a href="#" id="lgToggle">Chưa có tài khoản? Tạo mới</a>
+      <span>
+        <button type="button" class="btn ghost" data-close>Hủy</button>
+        <button type="submit" class="btn primary" id="lgSubmit">Đăng nhập</button>
+      </span>
+    </div>
+  </form>
+</dialog>
+
+<!-- Sync panel -->
+<dialog id="dlgSync" class="modal">
+  <form method="dialog" id="formSync">
+    <h2>Đồng bộ online</h2>
+    <div class="syncinfo">
+      <div><span class="muted">Tài khoản</span><b id="syUser">—</b></div>
+      <div><span class="muted">Máy chủ</span><code id="syServer">—</code></div>
+      <div><span class="muted">Máy này</span><b id="syDevice">—</b></div>
+      <div><span class="muted">Lần đồng bộ cuối</span><b id="syLast">—</b></div>
+    </div>
+    <p class="formerr" id="syErr"></p>
+    <p class="muted small" id="syBusy"></p>
+    <div class="syncactions">
+      <button type="button" class="btn" id="syNow">Đồng bộ ngay</button>
+      <button type="button" class="btn" id="syLog" title="Mở thư mục chứa file app.log">Mở nhật ký lỗi</button>
+      <button type="button" class="btn" id="syUploadAll" title="Mở ngầm từng hồ sơ để lưu trạng thái đăng nhập lên máy chủ">Lưu đăng nhập của tất cả hồ sơ</button>
+    </div>
+    <p class="muted small">Đăng nhập web (cookie) của hồ sơ đang mở được lưu tự động mỗi 3 phút và khi bấm <b>Đóng</b>. Nên đóng hồ sơ bằng nút Đóng trong phần mềm thay vì nút X của Chrome.</p>
+
+    <fieldset class="proxybox">
+      <legend>Sao lưu</legend>
+      <div class="row2">
+        <label class="field">Mật khẩu cho file sao lưu <input id="bkPass" type="password" placeholder="ít nhất 8 ký tự"></label>
+        <button type="button" class="btn" id="bkExport">Tạo file sao lưu</button>
+      </div>
+      <div class="row2">
+        <label class="field">Khôi phục từ file <input id="bkFile" type="file" accept=".qlcbak"></label>
+        <button type="button" class="btn" id="bkImport">Khôi phục</button>
+      </div>
+      <p class="muted small" id="bkRes"></p>
+    </fieldset>
+
+    <fieldset class="proxybox">
+      <legend>Đổi mật khẩu</legend>
+      <div class="row3">
+        <label class="field">Mật khẩu hiện tại <input id="pwOld" type="password"></label>
+        <label class="field">Mật khẩu mới <input id="pwNew" type="password"></label>
+        <button type="button" class="btn" id="pwChange">Đổi</button>
+      </div>
+      <p class="muted small">Sau khi đổi, các máy khác cần đăng nhập lại bằng mật khẩu mới.</p>
+    </fieldset>
+
+    <div class="actions spread">
+      <button type="button" class="btn danger" id="syLogout">Đăng xuất khỏi máy này</button>
+      <button type="button" class="btn ghost" data-close>Đóng</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toasts"></div>
+<script src="app.js"></script>
+</body>
+</html>

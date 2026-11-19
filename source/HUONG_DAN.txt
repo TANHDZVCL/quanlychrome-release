@@ -1,0 +1,87 @@
+QUẢN LÝ CHROME - HƯỚNG DẪN SỬ DỤNG
+===================================
+
+YÊU CẦU
+- Windows 10 hoặc 11 (64-bit), đã cài Google Chrome.
+- Microsoft Edge WebView2 Runtime. Win 10/11 thường đã có sẵn. Nếu chưa có,
+  phần mềm sẽ báo và chỉ chỗ tải.
+
+CÀI ĐẶT
+1. Giải nén file zip vào một thư mục cố định, ví dụ: D:\QuanLyChrome
+   (KHÔNG chạy trực tiếp từ trong file zip, KHÔNG để trong Program Files).
+2. Bấm đúp ChromeManager.exe.
+3. Nếu Windows hiện "Windows protected your PC": bấm "More info" rồi "Run anyway".
+   (Do phần mềm chưa được ký số, không phải virus.)
+
+DỮ LIỆU LƯU Ở ĐÂU
+- Thư mục "ChromeManagerData" nằm cạnh ChromeManager.exe.
+  + profiles.json: danh sách hồ sơ, nhóm, ghi chú, proxy.
+  + profiles\<mã>\: dữ liệu Chrome riêng của từng hồ sơ (cookie, đăng nhập,
+    lịch sử, tiện ích).
+- Muốn sao lưu hoặc chuyển sang máy khác: tắt hết Chrome, copy cả thư mục
+  QuanLyChrome.
+- profiles.json chứa mật khẩu proxy ở dạng chữ thường. Đừng gửi file này cho người khác.
+
+CHỨC NĂNG
+- Tạo hồ sơ: bấm "Tạo hồ sơ" (Ctrl+N). Nhập "Số lượng" để tạo nhiều hồ sơ một lúc
+  (tự đánh số Tên 1, Tên 2...).
+- Mở / Đóng: nút ở cuối mỗi dòng. Mỗi hồ sơ là một cửa sổ Chrome tách biệt,
+  tiêu đề cửa sổ mang tên hồ sơ.
+- Proxy: hỗ trợ HTTP và SOCKS5, có hoặc không có tài khoản/mật khẩu.
+  Ô "Dán nhanh" nhận các dạng:
+      1.2.3.4:8080
+      1.2.3.4:8080:user:pass
+      user:pass@1.2.3.4:8080
+      socks5://user:pass@1.2.3.4:1080
+  Bấm "Kiểm tra proxy" để xem IP, quốc gia và tốc độ.
+- Chọn nhiều hồ sơ (ô vuông đầu dòng) để Mở / Đóng / Kiểm tra proxy /
+  Gán proxy / Đổi nhóm / Xóa hàng loạt.
+- Gán proxy hàng loạt: dán danh sách, mỗi dòng một proxy. Proxy được gán lần lượt
+  theo thứ tự hồ sơ; thiếu thì quay vòng. Để trống = gỡ proxy.
+- Lọc theo nhóm, trạng thái; tìm kiếm (Ctrl+F); bấm đúp một dòng để sửa.
+- Nút thư mục: mở thư mục dữ liệu của hồ sơ.
+- Nhân bản (biểu tượng 2 tờ giấy): tạo hồ sơ mới GIỮ tiện ích + dữ liệu tiện ích
+  + cài đặt Chrome, KHÔNG chép cookie, đăng nhập, mật khẩu, lịch sử, dấu trang.
+  Mẹo: cài sẵn tiện ích vào 1 hồ sơ mẫu rồi nhân bản ra nhiều hồ sơ.
+- Tiện ích cài sẵn: khi tạo/sửa hồ sơ, dán link Chrome Web Store. Lần đầu mở
+  hồ sơ trên một máy, phần mềm mở sẵn trang tiện ích để bấm "Thêm vào Chrome"
+  (Chrome không cho phần mềm khác cài ngầm). Danh sách tiện ích được đồng bộ.
+- Cờ quốc gia hiện cạnh proxy (theo quốc gia proxy VPN hoặc theo IP đã kiểm tra).
+- Cài đặt: chọn đường dẫn chrome.exe nếu phần mềm không tự tìm thấy.
+
+ĐỒNG BỘ ONLINE (dùng chung trên nhiều máy)
+- Bấm nút "Đồng bộ" ở góc trên. Lần đầu: "Tạo mới" tài khoản (cần mã đăng ký
+  của máy chủ). Các máy khác: đăng nhập cùng tài khoản.
+- Được đồng bộ: danh sách hồ sơ, nhóm, ghi chú, proxy, trang khởi động,
+  ĐĂNG NHẬP WEB (cookie) và dấu trang (bookmark) của từng hồ sơ.
+  Không đồng bộ: lịch sử, tiện ích, mật khẩu đã lưu trong Chrome.
+- Dữ liệu được MÃ HÓA bằng mật khẩu của bạn trước khi gửi lên. QUÊN MẬT KHẨU
+  = MẤT DỮ LIỆU ĐỒNG BỘ. Hãy ghi mật khẩu ở nơi an toàn và thỉnh thoảng tạo
+  file sao lưu (nút Đồng bộ -> Tạo file sao lưu).
+- Đăng nhập web được lưu TỰ ĐỘNG: mỗi 3 phút khi đang mở, khi bấm "Đóng"
+  trong phần mềm, và cả khi đóng Chrome bằng nút X (phần mềm phải đang mở).
+- Hồ sơ chưa có biểu tượng đám mây sẽ được tự lưu lên máy chủ khi mở phần mềm.
+- Mỗi hồ sơ mặc định chỉ mở trên một máy tại một thời điểm; mở ở máy khác sẽ
+  được hỏi lại. Muốn mở cùng lúc nhiều máy: Cài đặt -> "Cho phép mở cùng lúc
+  trên nhiều máy" (có rủi ro bị Facebook/Google bắt xác minh).
+- Nhiều máy có thể đăng nhập cùng tài khoản và dùng cùng lúc các hồ sơ khác nhau.
+
+PROXY VPN (tạo proxy từ ExpressVPN, mỗi hồ sơ một IP)
+- Cần đăng nhập Đồng bộ (tài khoản đầu tiên trên máy chủ).
+- Bấm "Proxy VPN" -> nhập Username/Password cấu hình thủ công của ExpressVPN
+  (expressvpn.com -> Set up other devices -> Manual Configuration -> OpenVPN).
+- Chọn quốc gia -> "Tạo proxy". Đợi 20–60 giây rồi bấm "Kiểm tra IP".
+- Tick chọn hồ sơ ở bảng chính -> mở Proxy VPN -> "Gán cho N hồ sơ".
+  Hoặc trong cửa sổ Sửa hồ sơ chọn ở mục "Chọn proxy VPN có sẵn".
+- "Đổi IP": kết nối lại VPN, thường ra IP mới cùng quốc gia.
+- ExpressVPN giới hạn số thiết bị kết nối cùng lúc (thường 8). Mỗi proxy tính
+  là 1 thiết bị. Nhiều hồ sơ hơn số proxy thì cho vài hồ sơ dùng chung.
+
+LƯU Ý QUAN TRỌNG
+- Hồ sơ dùng proxy CÓ MẬT KHẨU: phải để phần mềm Quản lý Chrome chạy trong suốt
+  lúc dùng Chrome của hồ sơ đó (phần mềm làm cầu nối gửi mật khẩu cho proxy).
+  Tắt phần mềm thì các cửa sổ đó mất mạng. Mở lại phần mềm thì tự kết nối lại.
+- Sửa proxy của hồ sơ đang mở: đóng rồi mở lại hồ sơ để áp dụng.
+- Xóa hồ sơ sẽ xóa vĩnh viễn dữ liệu Chrome của hồ sơ đó.
+- Đóng hồ sơ: phần mềm yêu cầu Chrome tự đóng để lưu tab và cookie; sau vài giây
+  mà chưa đóng thì sẽ buộc tắt.
