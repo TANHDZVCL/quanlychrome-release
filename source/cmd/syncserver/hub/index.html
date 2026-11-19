@@ -40,6 +40,7 @@ input:focus { border-color: var(--accent); }
 .err { color: #ff9b98; min-height: 1em; font-size: 13px; }
 #kbd { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; resize: none; }
 #typebar { display: flex; align-items: center; gap: 6px; padding: 8px; background: var(--panel); border-top: 1px solid var(--line); }
+#typeTo.live { color: #7ee2aa; }
 #typeTo { color: var(--muted); font-size: 12px; white-space: nowrap; flex-shrink: 0; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 800px) {
   #tabs { display: flex; }
@@ -71,7 +72,7 @@ input:focus { border-color: var(--accent); }
   <div id="grid"></div>
   <div id="typebar">
     <span id="typeTo"></span>
-    <input id="typeIn" placeholder="Gõ tin nhắn rồi bấm Enter để gửi" autocomplete="off">
+    <input id="typeIn" placeholder="(Không bắt buộc) gõ ở đây rồi Enter để gửi" autocomplete="off">
     <button class="primary" id="typeSend">Gửi</button>
   </div>
 </div>
@@ -163,6 +164,7 @@ async function start() {
   if (r.status === 401) { showLogin(); return; }
   const me = await r.json().catch(() => ({}));
   $("#login").hidden = true;
+  setTimeout(focusKbd, 0);
   $("#app").hidden = false;
   renderNotifBtn();
   setAgent(!!me.online, me.agentName);
@@ -231,8 +233,7 @@ function renderPanels() {
     if (e.ph.dataset.html !== html) { e.ph.innerHTML = html; e.ph.dataset.html = html; }
     e.root.classList.toggle("active", p.id === active);
   });
-  const cur = panels.find((p) => p.id === active);
-  $("#typeTo").textContent = cur ? "Gửi vào: " + cur.name : "";
+  updateTypeTo();
   $("#tabs").innerHTML = panels.map((p) => `<button data-tab="${p.id}" class="${p.id === active ? "on" : ""}">${escapeHTML(p.name)}${p.unread ? ` (${p.unread})` : ""}</button>`).join("");
 }
 
@@ -365,6 +366,31 @@ function sendTyped() {
 }
 $("#typeSend").onclick = sendTyped;
 $("#typeIn").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendTyped(); } });
+
+// Typing anywhere on the page goes straight into the selected Zalo:
+// the keyboard focus is kept on the hidden text box unless the user is
+// in the type bar (or another field).
+const isField = (el) => el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA") && el !== kbd;
+function updateTypeTo() {
+  const cur = panels.find((p) => p.id === active);
+  const live = document.activeElement === kbd;
+  $("#typeTo").classList.toggle("live", live);
+  $("#typeTo").textContent = !cur ? "" : live ? "⌨ Bàn phím đang gõ thẳng vào " + cur.name : "Gửi vào: " + cur.name;
+}
+kbd.addEventListener("focus", updateTypeTo);
+kbd.addEventListener("blur", updateTypeTo);
+document.addEventListener("keydown", (ev) => {
+  if ($("#app").hidden || !active || isField(document.activeElement) || document.activeElement === kbd) return;
+  if (ev.isComposing) return;
+  const combo = (ev.ctrlKey || ev.metaKey) && ev.key.length === 1 && ev.key.toLowerCase() !== "v";
+  if (SPECIAL[ev.key] || combo) { ev.preventDefault(); sendKey(ev); kbd.focus({ preventScroll: true }); return; }
+  kbd.focus({ preventScroll: true }); // the typed character lands in the text box
+}, true);
+document.addEventListener("click", (ev) => {
+  if ($("#app").hidden || isField(ev.target) || isField(document.activeElement)) return;
+  focusKbd();
+});
+window.addEventListener("focus", () => { if (!$("#app").hidden && !isField(document.activeElement)) focusKbd(); });
 
 start();
 </script>

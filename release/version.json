@@ -1,1 +1,1 @@
-{"version": "3.5", "sha256": "15e82e669968e9701118d17f637d75d9043333176cec9c0fabc030729ea7e965", "notes": "Trung tâm Zalo: thanh gõ tin ở dưới cùng cả trên máy tính, gõ xong bấm Enter là gửi", "file": "ChromeManager.exe"}
+{"version": "3.6", "sha256": "0aca27fda90fa12fde647e22d3a0bc13dd9e224c7110238c7d91a74dc5e75bdc", "notes": "Trung tâm Zalo: gõ bàn phím là chữ vào thẳng Zalo đang chọn, Enter để gửi, không cần bấm vào ô", "file": "ChromeManager.exe"}
