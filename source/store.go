@@ -41,6 +41,8 @@ type Profile struct {
 	// Set when the profile is in the trash (permanently deleted after 7 days).
 	TrashedAt *time.Time `json:"trashedAt,omitempty"`
 	Pinned    bool       `json:"pinned,omitempty"`
+	// Sites whose Local Storage/IndexedDB are synced too (e.g. "zalo.me").
+	SiteDomains string `json:"siteDomains,omitempty"`
 	// Login details of the account used in this profile. Synced encrypted.
 	Account *Account `json:"account,omitempty"`
 

@@ -34,3 +34,8 @@ khởi động thì người dùng phải chạy lại install.sh.
   Không sao lưu tài khoản ExpressVPN (`vpn/creds.json`) — khôi phục xong người dùng nhập lại trong mục Proxy VPN.
 - Khôi phục (sau khi đã chạy install.sh trên VPS mới):
   `rclone copy gdrive:QuanLyChrome-SaoLuu/<file>.tar.gz /root/ && systemctl stop chrome-sync && tar xzf /root/<file>.tar.gz -C /opt/chrome-sync && chown -R chromesync:chromesync /opt/chrome-sync/data && systemctl start chrome-sync`
+
+## Ghi chú kỹ thuật
+- Dữ liệu web (Profile.SiteDomains): đóng gói `Default/Local Storage`, `Default/LocalStorage*` (SQLite, Chrome mới)
+  và `Default/IndexedDB/<thư mục chứa tên miền>` khi Chrome đã đóng → blob `s_<id>`; khôi phục trước khi mở.
+- Cổng điều khiển Chrome (--remote-debugging-port=0, chỉ 127.0.0.1) luôn bật: lưu/khôi phục cookie, xếp cửa sổ.

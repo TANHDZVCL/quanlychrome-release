@@ -42,6 +42,7 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("POST /api/delete", s.delete)
 	api.HandleFunc("POST /api/clone", s.clone)
 	api.HandleFunc("POST /api/restore", s.restore)
+	api.HandleFunc("POST /api/tile", s.tile)
 	api.HandleFunc("POST /api/pin", s.pin)
 	api.HandleFunc("POST /api/meta", s.saveMeta)
 	api.HandleFunc("GET /api/totp/{id}", s.totp)
@@ -114,14 +115,15 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 }
 
 type profileInput struct {
-	Name       string   `json:"name"`
-	Group      string   `json:"group"`
-	Notes      string   `json:"notes"`
-	StartURL   string   `json:"startUrl"`
-	Proxy      Proxy    `json:"proxy"`
-	Count      int      `json:"count"`
-	Extensions []string `json:"extensions"`
-	Account    *Account `json:"account"`
+	Name        string   `json:"name"`
+	Group       string   `json:"group"`
+	Notes       string   `json:"notes"`
+	StartURL    string   `json:"startUrl"`
+	Proxy       Proxy    `json:"proxy"`
+	Count       int      `json:"count"`
+	Extensions  []string `json:"extensions"`
+	Account     *Account `json:"account"`
+	SiteDomains *string  `json:"siteDomains"`
 }
 
 func cleanAccount(a *Account) *Account {
@@ -189,6 +191,9 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		if in.Count == 1 {
 			ps[len(ps)-1].Account = cleanAccount(in.Account)
 		}
+		if in.SiteDomains != nil {
+			ps[len(ps)-1].SiteDomains = strings.Join(siteDomains(*in.SiteDomains), ", ")
+		}
 	}
 	if err := s.store.Add(ps); err != nil {
 		writeErr(w, 500, err.Error())
@@ -218,6 +223,9 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 		p.Proxy = px
 		if in.Extensions != nil {
 			p.Extensions = validExtIDs(in.Extensions)
+		}
+		if in.SiteDomains != nil {
+			p.SiteDomains = strings.Join(siteDomains(*in.SiteDomains), ", ")
 		}
 		if in.Account != nil { // absent = keep; {} = clear
 			p.Account = cleanAccount(in.Account)
@@ -727,4 +735,15 @@ func (s *Server) totp(w http.ResponseWriter, r *http.Request) {
 func (s *Server) checkAll(w http.ResponseWriter, r *http.Request) {
 	go s.mgr.CheckAll()
 	writeJSON(w, map[string]any{"ok": true})
+}
+
+func (s *Server) tile(w http.ResponseWriter, r *http.Request) {
+	var in idsInput
+	_ = readJSON(r, &in)
+	n, err := s.mgr.Tile(in.IDs)
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"arranged": n})
 }

@@ -49,6 +49,11 @@ CHỨC NĂNG
 - Dung lượng: cột "Dung lượng" cho biết mỗi hồ sơ chiếm bao nhiêu trên máy này.
   Chọn hồ sơ -> "Dọn bộ nhớ đệm" để xóa ảnh/file tạm (KHÔNG đăng xuất).
   Cài đặt -> "Giới hạn bộ nhớ đệm" (mặc định 200 MB/hồ sơ).
+- Xếp cửa sổ ⊞: xếp các cửa sổ Chrome đang mở thành lưới (đang chọn hồ sơ thì
+  chỉ xếp các hồ sơ đó).
+- Đồng bộ dữ liệu web: khi Sửa hồ sơ, nhập trang cần giữ đăng nhập (vd: zalo.me,
+  web.telegram.org). Dữ liệu được lưu khi đóng hồ sơ và chép sang máy khác khi
+  mở. Một số trang vẫn có thể bắt đăng nhập lại khi đổi máy.
 - Thùng rác 🗑: xóa hồ sơ là chuyển vào thùng rác, khôi phục được trong 7 ngày
   (kể cả đăng nhập), sau đó tự xóa vĩnh viễn.
 - Tài khoản 🔑: lưu UID, email, mật khẩu, mã 2FA cho từng hồ sơ (mã hóa, đồng bộ);

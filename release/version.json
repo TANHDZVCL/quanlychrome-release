@@ -1,1 +1,1 @@
-{"version": "3.1", "sha256": "4367c4295909c5baa5720c55365a0c74d47cb0b9d1c6cfcda88b34e5048fc619", "notes": "Thùng rác 7 ngày, lưu tài khoản + mã 2FA, tự kiểm tra proxy mỗi 3 giờ, ghim & sắp xếp hồ sơ, nhắc gia hạn VPS.", "file": "ChromeManager.exe"}
+{"version": "3.2", "sha256": "574644ed2b7e85de9f29a853e246e34a2c8130ff4e4b576594069b7f1c62e222", "notes": "Xếp cửa sổ Chrome thành lưới; đồng bộ dữ liệu web (Zalo Web, Telegram Web…) sang máy khác.", "file": "ChromeManager.exe"}

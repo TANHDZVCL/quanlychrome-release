@@ -36,6 +36,7 @@ type syncConfig struct {
 	ProfilesVersion int64                   `json:"profilesVersion"`
 	ProfilesHash    string                  `json:"profilesHash"`
 	Cookies         map[string]*cookieState `json:"cookies"`
+	Site            map[string]*cookieState `json:"site"`
 }
 
 type blobMeta struct {
@@ -122,6 +123,9 @@ func NewSyncer(store *Store, dataDir string) *Syncer {
 	}
 	if s.cfg.Cookies == nil {
 		s.cfg.Cookies = map[string]*cookieState{}
+	}
+	if s.cfg.Site == nil {
+		s.cfg.Site = map[string]*cookieState{}
 	}
 	if s.cfg.KeyProt != "" && s.cfg.Token != "" {
 		if k, err := unprotectKey(s.cfg.KeyProt); err == nil && len(k) == 32 {
@@ -543,7 +547,7 @@ func (s *Syncer) syncPass() error {
 	s.mu.Lock()
 	var gone []string
 	for k := range s.meta {
-		if strings.HasPrefix(k, "c_") {
+		if strings.HasPrefix(k, "c_") || strings.HasPrefix(k, "s_") {
 			if _, ok := deleted[k[2:]]; ok {
 				gone = append(gone, k)
 			}
@@ -827,4 +831,81 @@ func mergeCookies(base, top cookieList) cookieList {
 		}
 	}
 	return out
+}
+
+// ---------- site data (Local Storage / IndexedDB) ----------
+
+// UploadSite stores a packed site-data archive for a profile if it changed.
+func (s *Syncer) UploadSite(id string, pack []byte) error {
+	if !s.Enabled() {
+		return nil
+	}
+	h := sha256.Sum256(pack)
+	hs := hex.EncodeToString(h[:])
+	s.mu.Lock()
+	cs := s.cfg.Site[id]
+	key := s.key
+	s.mu.Unlock()
+	if cs != nil && cs.Hash == hs {
+		return nil
+	}
+	data, err := seal(key, pack)
+	if err != nil {
+		return err
+	}
+	b, _, err := s.do("PUT", "/api/blobs/s_"+id, data, map[string]string{"Content-Type": "application/octet-stream"})
+	if err != nil {
+		return err
+	}
+	var out struct{ Version int64 }
+	_ = json.Unmarshal(b, &out)
+	s.mu.Lock()
+	s.cfg.Site[id] = &cookieState{Version: out.Version, Hash: hs}
+	s.meta["s_"+id] = blobMeta{Version: out.Version, UpdatedAt: time.Now(), Size: int64(len(data)), Device: s.cfg.DeviceID}
+	_ = s.saveLocked()
+	s.mu.Unlock()
+	return nil
+}
+
+// SiteToRestore returns the server's site-data archive if another computer
+// saved a newer one than this computer has.
+func (s *Syncer) SiteToRestore(id string) ([]byte, int64, error) {
+	if !s.Enabled() {
+		return nil, 0, nil
+	}
+	if err := s.refreshMeta(); err != nil {
+		return nil, 0, err
+	}
+	s.mu.Lock()
+	m, ok := s.meta["s_"+id]
+	var have int64
+	if cs := s.cfg.Site[id]; cs != nil {
+		have = cs.Version
+	}
+	key, me := s.key, s.cfg.DeviceID
+	s.mu.Unlock()
+	if !ok || m.Version <= have {
+		return nil, 0, nil
+	}
+	if m.Device == me { // saved by this computer: local files are as new
+		s.markSite(id, m.Version, "")
+		return nil, 0, nil
+	}
+	data, hdr, err := s.do("GET", "/api/blobs/s_"+id, nil, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	pack, err := unseal(key, data)
+	if err != nil {
+		return nil, 0, err
+	}
+	v, _ := strconv.ParseInt(hdr.Get("X-Version"), 10, 64)
+	return pack, v, nil
+}
+
+func (s *Syncer) markSite(id string, v int64, hash string) {
+	s.mu.Lock()
+	s.cfg.Site[id] = &cookieState{Version: v, Hash: hash}
+	_ = s.saveLocked()
+	s.mu.Unlock()
 }

@@ -54,6 +54,7 @@
     <option value="size">Dung lượng lớn nhất</option>
   </select>
   <div class="spacer"></div>
+  <button class="btn" id="btnTile" title="Xếp cửa sổ Chrome đang mở thành lưới (đang chọn hồ sơ thì chỉ xếp các hồ sơ đó)">⊞ Xếp cửa sổ</button>
   <button class="btn ghost" id="btnTrash" title="Hồ sơ đã xóa (khôi phục trong 7 ngày)">🗑 <span id="trashCount">0</span></button>
   <button class="btn" id="btnVpn" title="Tạo proxy từ ExpressVPN trên VPS">
     <svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6Z"/></svg>Proxy VPN</button>
@@ -116,6 +117,10 @@
     </div>
     <label class="field">Ghi chú
       <textarea name="notes" rows="2" maxlength="1000" placeholder="Tài khoản, mục đích sử dụng…"></textarea>
+    </label>
+    <label class="field">Đồng bộ thêm dữ liệu web của các trang (để giữ đăng nhập Zalo Web, Telegram Web… khi sang máy khác)
+      <input name="sites" placeholder="VD: zalo.me, web.telegram.org — để trống = chỉ đồng bộ cookie">
+      <small>Lưu khi đóng hồ sơ. Nặng hơn cookie (tối đa 50 MB/hồ sơ). Một số trang vẫn có thể bắt đăng nhập lại khi đổi máy.</small>
     </label>
     <label class="field">Tiện ích cài sẵn — dán link Chrome Web Store, mỗi dòng 1 link
       <textarea name="exts" rows="2" placeholder="https://chromewebstore.google.com/detail/get-token-cookie/naciaagbkifhpnoodlkhbejjldaiffcm"></textarea>

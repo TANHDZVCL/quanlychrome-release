@@ -125,6 +125,7 @@ function render() {
   const active = state.profiles.filter((p) => !p.trashedAt);
   $("#statTotal").textContent = active.length;
   $("#trashCount").textContent = state.profiles.length - active.length;
+  $("#btnTile").hidden = !active.some((p) => p.running);
   renderVpsBanner();
   $("#statRunning").textContent = state.profiles.filter((p) => p.running).length;
   $("#chromeWarn").hidden = !!state.chromePath;
@@ -315,6 +316,7 @@ function openProfileDialog(id) {
     const a = p.account || {};
     f.auid.value = a.uid || ""; f.aemail.value = a.email || ""; f.apass.value = a.password || "";
     f.a2fa.value = a.twofa || ""; f.aextra.value = a.extra || "";
+    f.sites.value = p.siteDomains || "";
     f.exts.value = (p.extensions || []).map((x) => "https://chromewebstore.google.com/detail/" + x).join("\n");
   } else {
     const g = $("#fGroup").value;
@@ -376,6 +378,11 @@ function renderTrash() {
 }
 const trIDs = () => [...document.querySelectorAll("#trRows .trsel:checked")].map((c) => c.closest("tr").dataset.id);
 $("#btnTrash").addEventListener("click", () => { renderTrash(); $("#dlgTrash").showModal(); });
+$("#btnTile").addEventListener("click", (e) => busyBtn(e.target, async () => {
+  const ids = [...selected].filter((id) => byId(id)?.running);
+  const r = await api("POST", "/api/tile", { ids });
+  toast(`Đã xếp ${r.arranged} cửa sổ`, "ok");
+}));
 $("#trAll").addEventListener("change", (e) => document.querySelectorAll("#trRows .trsel").forEach((c) => (c.checked = e.target.checked)));
 $("#trRestore").addEventListener("click", (e) => busyBtn(e.target, async () => {
   const ids = trIDs();
@@ -692,6 +699,7 @@ $("#formProfile").addEventListener("submit", async (e) => {
     name: f.name.value, group: f.group.value, notes: f.notes.value, startUrl: f.startUrl.value,
     proxy: formProxy(f), count: parseInt(f.count.value, 10) || 1,
     extensions: extIDs(f.exts.value),
+    siteDomains: f.sites.value,
     account: { uid: f.auid.value, email: f.aemail.value, password: f.apass.value, twofa: f.a2fa.value, extra: f.aextra.value },
   };
   if (f.exts.value.trim() && !body.extensions.length) {

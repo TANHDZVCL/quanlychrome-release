@@ -151,6 +151,7 @@ func (m *Manager) watch() {
 		for _, id := range ended {
 			go func(id string) {
 				m.recordExtensions(id, false)
+				m.saveSiteData(id)
 				m.saveAfterExit(id)
 				m.sync.ReleaseLock(id)
 			}(id)
@@ -268,6 +269,18 @@ func (m *Manager) Open(id string, force bool) error {
 			m.sync.MarkRestored(id, restoreVer, restore)
 			restore = nil
 		}
+		if doms := siteDomains(p.SiteDomains); len(doms) > 0 {
+			if pack, v, err := m.sync.SiteToRestore(id); err != nil {
+				log.Printf("site restore %s: %v", id, err)
+			} else if pack != nil {
+				if err := UnpackSiteData(dir, pack); err != nil {
+					log.Printf("site restore %s: %v", id, err)
+				} else {
+					m.sync.markSite(id, v, "")
+					log.Printf("đã khôi phục dữ liệu web cho %s (bản %d, %d KB)", id, v, len(pack)>>10)
+				}
+			}
+		}
 		if restore != nil && len(restore.Bookmarks) > 0 {
 			_ = os.MkdirAll(filepath.Join(dir, "Default"), 0o755)
 			_ = os.WriteFile(filepath.Join(dir, "Default", "Bookmarks"), restore.Bookmarks, 0o644)
@@ -285,8 +298,8 @@ func (m *Manager) Open(id string, force bool) error {
 	if mb := cacheLimitMB(m.store.Settings().CacheMB); mb > 0 {
 		args = append(args, fmt.Sprintf("--disk-cache-size=%d", mb<<20))
 	}
-	if syncOn {
-		// Local-only DevTools port, used to save/restore the login cookies.
+	{
+		// Local-only control port: saving/restoring logins, arranging windows.
 		_ = os.Remove(devToolsPortFile(dir))
 		args = append(args, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1")
 	}
@@ -386,6 +399,7 @@ func (m *Manager) Open(id string, force bool) error {
 		if fwd != nil {
 			fwd.Close()
 		}
+		m.saveSiteData(id)
 		if !byApp {
 			m.saveAfterExit(id) // closed with the window's X: save now
 		}
@@ -683,4 +697,27 @@ func cacheLimitMB(v int) int {
 		return 0
 	}
 	return v
+}
+
+// saveSiteData uploads the profile's Local Storage/IndexedDB after Chrome
+// has closed (the files are consistent only then).
+func (m *Manager) saveSiteData(id string) {
+	p, ok := m.store.Get(id)
+	if !ok || !m.sync.Enabled() {
+		return
+	}
+	doms := siteDomains(p.SiteDomains)
+	if len(doms) == 0 {
+		return
+	}
+	pack, err := PackSiteData(m.store.ProfileDir(id), doms)
+	if err == nil {
+		err = m.sync.UploadSite(id, pack)
+	}
+	if err != nil {
+		log.Printf("LỖI lưu dữ liệu web %s: %v", id, err)
+		m.sync.setCaptureErr(fmt.Sprintf("Không lưu được dữ liệu web của \"%s\": %v", p.Name, err))
+		return
+	}
+	log.Printf("đã lưu dữ liệu web của %s (%d KB)", id, len(pack)>>10)
 }

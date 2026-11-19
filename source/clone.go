@@ -101,6 +101,9 @@ var cloneSkip = map[string]bool{
 	"autofillstrikedatabase": true, "autofillaimodelcache": true, "budgetdatabase": true, "gcm store": true,
 	"sync data": true, "platform_notifications": true, "segmentation_platform": true, "collaboration": true,
 	"datasharing": true, "clientcertificates": true, "reporting and nel": true, "reporting and nel-journal": true,
+	// newer Chrome keeps web storage in SQLite files
+	"localstorage": true, "localstorage-journal": true, "localstorage-wal": true, "localstorage-shm": true,
+	"sessionstorage": true, "sessionstorage-journal": true, "sessionstorage-wal": true, "sessionstorage-shm": true,
 }
 
 func skipInDefault(rel string) bool {
