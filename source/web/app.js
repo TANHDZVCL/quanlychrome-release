@@ -65,6 +65,12 @@ function timeAgo(iso) {
   if (s < 86400 * 7) return Math.floor(s / 86400) + " ngày trước";
   return d.toLocaleDateString("vi-VN");
 }
+function fmtSize(n) {
+  if (!n) return "—";
+  if (n < 1 << 20) return Math.max(1, Math.round(n / 1024)) + " KB";
+  if (n < 1 << 30) return Math.round(n / (1 << 20)) + " MB";
+  return (n / (1 << 30)).toFixed(1) + " GB";
+}
 function proxyText(p) {
   if (!p || !p.type || !p.host) return "";
   return `${p.host}:${p.port}`;
@@ -156,6 +162,7 @@ function rowHTML(p) {
     <td>${px}</td>
     <td>${statusHTML}</td>
     <td class="muted" title="${p.lastOpened ? esc(new Date(p.lastOpened).toLocaleString("vi-VN")) : ""}">${timeAgo(p.lastOpened)}</td>
+    <td class="muted">${fmtSize((state.sizes || {})[p.id])}</td>
     <td><div class="rowact">${toggle}
       <button class="iconbtn" data-act="edit" title="Sửa">${ICON.edit}</button>
       <button class="iconbtn" data-act="check" title="Kiểm tra proxy">${ICON.globe}</button>
@@ -295,6 +302,21 @@ function openProfileDialog(id) {
 
 function extIDs(text) {
   return [...new Set((text.toLowerCase().match(/[a-p]{32}/g) || []))];
+}
+
+async function clearCache(ids) {
+  const ok = await confirmBox(
+    `Dọn bộ nhớ đệm ${ids.length} hồ sơ?`,
+    "Chỉ xóa ảnh, video, file tạm Chrome đã tải về để mở trang nhanh hơn.\nKHÔNG xóa đăng nhập (cookie), mật khẩu, lịch sử, tiện ích, cài đặt.\nHồ sơ đang mở sẽ được bỏ qua.",
+    "Dọn ngay",
+  );
+  if (!ok) return;
+  try {
+    const r = await api("POST", "/api/clear-cache", { ids });
+    toast(`Đã dọn ${r.cleared} hồ sơ, giải phóng ${fmtSize(r.freed) === "—" ? "0 MB" : fmtSize(r.freed)}` +
+      (r.skipped ? `\nBỏ qua ${r.skipped} hồ sơ đang mở` : ""), "ok");
+  } catch (e) { toast(e.message, "err"); }
+  setTimeout(refresh, 1500);
 }
 
 // ---------- clone ----------
@@ -617,6 +639,7 @@ $("#formSettings").addEventListener("submit", async (e) => {
       chromePath: e.target.chromePath.value,
       allowMultiOpen: e.target.allowMultiOpen.checked,
       chromeLang: e.target.chromeLang.value,
+      cacheMB: parseInt(e.target.cacheMB.value, 10) || 0,
     });
     toast("Đã lưu cài đặt", "ok");
     $("#dlgSettings").close();
@@ -629,6 +652,7 @@ function openSettings() {
   f.chromePath.value = state.settings.chromePath || "";
   f.allowMultiOpen.checked = !!state.settings.allowMultiOpen;
   f.chromeLang.value = state.settings.chromeLang || "vi";
+  f.cacheMB.value = String(state.settings.cacheMB || 0);
   $("#setChrome").textContent = state.chromePath || "Không tìm thấy";
   $("#setData").textContent = state.dataDir;
   $("#setVersion").textContent = state.version || "—";
@@ -673,6 +697,7 @@ $("#bulkbar").addEventListener("click", (e) => {
     case "check": checkProfiles(ids); break;
     case "delete": deleteProfiles(ids); break;
     case "clear": selected.clear(); render(); break;
+    case "cache": clearCache(ids); break;
     case "proxy":
       $("#formProxy").reset(); $("#bpErr").textContent = ""; $("#bpCount").textContent = ids.length;
       $("#dlgProxy").showModal(); break;

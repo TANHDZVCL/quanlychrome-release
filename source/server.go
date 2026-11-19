@@ -41,6 +41,7 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("PUT /api/profiles/{id}", s.update)
 	api.HandleFunc("POST /api/delete", s.delete)
 	api.HandleFunc("POST /api/clone", s.clone)
+	api.HandleFunc("POST /api/clear-cache", s.clearCache)
 	api.HandleFunc("POST /api/open", s.open)
 	api.HandleFunc("POST /api/close", s.close)
 	api.HandleFunc("POST /api/folder/{id}", s.folder)
@@ -87,6 +88,7 @@ func readJSON(r *http.Request, v any) error {
 }
 
 func (s *Server) state(w http.ResponseWriter, r *http.Request) {
+	profileSizes.Refresh(s.store, 2*time.Minute)
 	ps := s.store.Profiles()
 	views := make([]profileView, len(ps))
 	for i, p := range ps {
@@ -99,6 +101,7 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 		"chromePath": s.mgr.ChromePath(),
 		"dataDir":    s.store.dataDir,
 		"sync":       s.sync.Status(),
+		"sizes":      profileSizes.Get(),
 		"version":    appVersion,
 	})
 }
@@ -377,6 +380,10 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Không tìm thấy file: "+in.ChromePath)
 		return
 	}
+	if in.CacheMB < -1 || in.CacheMB > 5000 {
+		writeErr(w, 400, "giới hạn bộ nhớ đệm không hợp lệ")
+		return
+	}
 	switch in.ChromeLang {
 	case "", "vi", "en", "system":
 	default:
@@ -587,4 +594,27 @@ func (s *Server) clone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"created": len(made)})
+}
+
+func (s *Server) clearCache(w http.ResponseWriter, r *http.Request) {
+	var in idsInput
+	if err := readJSON(r, &in); err != nil || len(in.IDs) == 0 {
+		writeErr(w, 400, "Chưa chọn hồ sơ")
+		return
+	}
+	var freed int64
+	done, skipped := 0, 0
+	for _, id := range in.IDs {
+		if _, ok := s.store.Get(id); !ok {
+			continue
+		}
+		if s.mgr.IsRunning(id) {
+			skipped++
+			continue
+		}
+		freed += ClearCache(s.store.ProfileDir(id))
+		profileSizes.Forget(id)
+		done++
+	}
+	writeJSON(w, map[string]any{"cleared": done, "skipped": skipped, "freed": freed})
 }

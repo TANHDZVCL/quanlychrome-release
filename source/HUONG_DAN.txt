@@ -46,6 +46,9 @@ CHỨC NĂNG
 - Tiện ích cài sẵn: khi tạo/sửa hồ sơ, dán link Chrome Web Store. Lần đầu mở
   hồ sơ trên một máy, phần mềm mở sẵn trang tiện ích để bấm "Thêm vào Chrome"
   (Chrome không cho phần mềm khác cài ngầm). Danh sách tiện ích được đồng bộ.
+- Dung lượng: cột "Dung lượng" cho biết mỗi hồ sơ chiếm bao nhiêu trên máy này.
+  Chọn hồ sơ -> "Dọn bộ nhớ đệm" để xóa ảnh/file tạm (KHÔNG đăng xuất).
+  Cài đặt -> "Giới hạn bộ nhớ đệm" (mặc định 200 MB/hồ sơ).
 - Cờ quốc gia hiện cạnh proxy (theo quốc gia proxy VPN hoặc theo IP đã kiểm tra).
 - Cài đặt: chọn đường dẫn chrome.exe nếu phần mềm không tự tìm thấy; chọn
   ngôn ngữ Chrome (mặc định Tiếng Việt).

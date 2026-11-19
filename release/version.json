@@ -1,1 +1,1 @@
-{"version": "2.8", "sha256": "19ab09c6c6158458a6dabb875954d88d95ebad2df9ee4e340e2f0654eafaa48a", "notes": "Chrome hiển thị tiếng Việt (giao diện + trang web ưu tiên tiếng Việt). Đổi trong Cài đặt > Ngôn ngữ Chrome.", "file": "ChromeManager.exe"}
+{"version": "2.9", "sha256": "da10a55df99e919762ee2682aca8928268ac8cafdd3fcf2fa19668ddc679ef97", "notes": "Cột Dung lượng mỗi hồ sơ, nút Dọn bộ nhớ đệm (không đăng xuất), giới hạn cache 200 MB/hồ sơ.", "file": "ChromeManager.exe"}

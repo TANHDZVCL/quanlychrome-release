@@ -59,6 +59,8 @@ type Settings struct {
 	// Chrome UI/website language: "" or "vi" = Vietnamese, "en" = English,
 	// "system" = leave Chrome's default.
 	ChromeLang string `json:"chromeLang"`
+	// Max disk cache per profile in MB: 0 = 200 (default), -1 = no limit.
+	CacheMB int `json:"cacheMB"`
 }
 
 type dbFile struct {

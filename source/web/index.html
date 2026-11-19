@@ -56,6 +56,7 @@
   <button class="btn sm" data-bulk="check">Kiểm tra proxy</button>
   <button class="btn sm" data-bulk="proxy">Gán proxy</button>
   <button class="btn sm" data-bulk="group">Đổi nhóm</button>
+  <button class="btn sm" data-bulk="cache" title="Xóa ảnh/file tạm Chrome tải về. Không đăng xuất.">Dọn bộ nhớ đệm</button>
   <button class="btn sm danger" data-bulk="delete">Xóa</button>
   <button class="btn sm ghost" data-bulk="clear">Bỏ chọn</button>
 </section>
@@ -70,6 +71,7 @@
         <th>Proxy</th>
         <th>Trạng thái</th>
         <th>Mở lần cuối</th>
+        <th title="Dung lượng dữ liệu Chrome của hồ sơ trên máy này">Dung lượng</th>
         <th class="c-act"></th>
       </tr>
     </thead>
@@ -217,6 +219,15 @@
         <option value="system">Theo mặc định của Chrome</option>
       </select>
       <small>Hồ sơ đang mở cần đóng và mở lại để áp dụng.</small>
+    </label>
+    <label class="field">Giới hạn bộ nhớ đệm (cache) mỗi hồ sơ
+      <select name="cacheMB">
+        <option value="100">100 MB</option>
+        <option value="0">200 MB (khuyên dùng)</option>
+        <option value="500">500 MB</option>
+        <option value="-1">Không giới hạn</option>
+      </select>
+      <small>Chrome tự xóa ảnh/file tạm cũ khi vượt mức. Không ảnh hưởng đăng nhập. Áp dụng khi mở lại hồ sơ.</small>
     </label>
     <label class="checkline"><input type="checkbox" name="allowMultiOpen">
       <span><b>Cho phép mở cùng lúc trên nhiều máy</b><br>

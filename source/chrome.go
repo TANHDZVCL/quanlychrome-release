@@ -278,6 +278,9 @@ func (m *Manager) Open(id string, force bool) error {
 		"--enable-logging", // writes chrome_debug.log in the profile folder (for diagnosing)
 	}
 	args = append(args, langArgs(m.store.Settings().ChromeLang)...)
+	if mb := cacheLimitMB(m.store.Settings().CacheMB); mb > 0 {
+		args = append(args, fmt.Sprintf("--disk-cache-size=%d", mb<<20))
+	}
 	if syncOn {
 		// Local-only DevTools port, used to save/restore the login cookies.
 		_ = os.Remove(devToolsPortFile(dir))
@@ -666,4 +669,14 @@ func langArgs(lang string) []string {
 	default: // Vietnamese
 		return []string{"--lang=vi", "--accept-lang=vi-VN,vi,en-US,en"}
 	}
+}
+
+func cacheLimitMB(v int) int {
+	switch {
+	case v == 0:
+		return 200
+	case v < 0:
+		return 0
+	}
+	return v
 }
