@@ -1,1 +1,1 @@
-{"version": "3.8", "sha256": "904724c6cd128fc5e03cea7e9411893514cc38aefa859eb4ff25de69b877d97a", "notes": "Nút G: mở hồ sơ để đăng nhập Google (khi Google báo trình duyệt không an toàn)", "file": "ChromeManager.exe"}
+{"version": "3.9", "sha256": "2728902f5bf23905e010f5f27f903d65f6f9b36f2f4847fd78826be871e771cf", "notes": "Nút G: mở trang đăng nhập Google ở chế độ sạch (tắt tiện ích, tùy chọn không qua proxy)", "file": "ChromeManager.exe"}

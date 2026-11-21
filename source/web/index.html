@@ -348,6 +348,20 @@
 </dialog>
 
 <!-- Confirm -->
+<dialog id="dlgGLogin" class="modal small">
+  <form method="dialog">
+    <h2>Mở để đăng nhập Google — <span id="glName"></span></h2>
+    <p>Dùng khi Google báo <b>"Trình duyệt không an toàn"</b>. Chrome sẽ mở trang đăng nhập Google ở chế độ sạch:
+      không cổng điều khiển và <b>tạm tắt mọi tiện ích</b> (chỉ lần mở này, tiện ích không bị gỡ).</p>
+    <label class="checkline" id="glProxyRow"><input type="checkbox" id="glNoProxy"><span>Đăng nhập <b>không qua proxy</b> (tick nếu vẫn bị chặn — IP VPN dùng chung hay bị Google nghi ngờ)</span></label>
+    <p class="muted">Đăng nhập xong hãy <b>đóng cửa sổ Chrome</b>, sau đó bấm <b>Mở</b> bình thường: Google vẫn đăng nhập sẵn, tiện ích và proxy hoạt động lại như cũ.</p>
+    <div class="actions">
+      <button value="no" class="btn ghost">Hủy</button>
+      <button value="yes" class="btn primary">Mở trang đăng nhập Google</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="dlgConfirm" class="modal small">
   <form method="dialog">
     <h2 id="cfTitle">Xác nhận</h2>

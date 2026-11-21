@@ -294,9 +294,10 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) open(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		IDs   []string `json:"ids"`
-		Force bool     `json:"force"`
-		Login bool     `json:"login"` // without the control port, to sign in to Google
+		IDs     []string `json:"ids"`
+		Force   bool     `json:"force"`
+		Login   bool     `json:"login"`   // plain Chrome to sign in to Google
+		NoProxy bool     `json:"noProxy"` // ...and not through the proxy
 	}
 	if err := readJSON(r, &in); err != nil || len(in.IDs) == 0 {
 		writeErr(w, 400, "Chưa chọn hồ sơ")
@@ -308,11 +309,13 @@ func (s *Server) open(w http.ResponseWriter, r *http.Request) {
 		if i > 0 {
 			time.Sleep(400 * time.Millisecond) // don't start many Chromes at the same instant
 		}
-		open := s.mgr.Open
+		var err error
 		if in.Login {
-			open = s.mgr.OpenForLogin
+			err = s.mgr.OpenForLogin(id, in.Force, in.NoProxy)
+		} else {
+			err = s.mgr.Open(id, in.Force)
 		}
-		if err := open(id, in.Force); err != nil {
+		if err != nil {
 			var le *LockedError
 			if errors.As(err, &le) {
 				locked[id] = err.Error()

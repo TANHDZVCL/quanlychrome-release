@@ -216,12 +216,16 @@ func normURL(u string) string {
 
 // Open launches Chrome for a profile. With sync on, it first takes the
 // profile's lock and restores cookies saved by another computer.
-func (m *Manager) Open(id string, force bool) error { return m.open(id, force, false) }
+func (m *Manager) Open(id string, force bool) error { return m.open(id, force, false, false) }
 
-// OpenForLogin launches Chrome without the control port: Google refuses to
-// sign in ("this browser may not be secure") while it is on. Logins are
-// still saved after the window is closed.
-func (m *Manager) OpenForLogin(id string, force bool) error { return m.open(id, force, true) }
+// OpenForLogin launches a plain Chrome for signing in to Google, which
+// refuses ("this browser may not be secure") when it sees a control port or
+// extensions that read logins. No control port, extensions switched off for
+// this run, optionally not through the proxy. Logins are still saved after
+// the window is closed.
+func (m *Manager) OpenForLogin(id string, force, noProxy bool) error {
+	return m.open(id, force, true, noProxy)
+}
 
 // HasControl reports whether the app can talk to this profile's Chrome.
 func (m *Manager) HasControl(id string) bool {
@@ -231,7 +235,7 @@ func (m *Manager) HasControl(id string) bool {
 	return !ok || !r.noCDP
 }
 
-func (m *Manager) open(id string, force, noCDP bool) error {
+func (m *Manager) open(id string, force, noCDP, noProxy bool) error {
 	p, ok := m.store.Get(id)
 	if !ok {
 		return errors.New("không tìm thấy hồ sơ")
@@ -327,15 +331,18 @@ func (m *Manager) open(id string, force, noCDP bool) error {
 		args = append(args, fmt.Sprintf("--disk-cache-size=%d", mb<<20))
 	}
 	_ = os.Remove(devToolsPortFile(dir))
-	if !noCDP {
+	if noCDP {
+		args = append(args, "--disable-extensions")
+	} else {
 		// Local-only control port: saving/restoring logins, arranging windows.
 		args = append(args, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1")
 	}
-	if err := setWebRTCPolicy(dir, p.Proxy.Enabled()); err != nil {
+	useProxy := p.Proxy.Enabled() && !noProxy
+	if err := setWebRTCPolicy(dir, useProxy); err != nil {
 		log.Printf("webrtc policy %s: %v", id, err)
 	}
 	var fwd *Forwarder
-	if p.Proxy.Enabled() {
+	if useProxy {
 		var server string
 		if p.Proxy.HasAuth() {
 			f, err := StartForwarder(p.Proxy, p.FwdPort)
@@ -354,8 +361,11 @@ func (m *Manager) open(id string, force, noCDP bool) error {
 		)
 	}
 	startURL := normURL(p.StartURL)
+	if noCDP {
+		startURL = "https://accounts.google.com/"
+	}
 	var extraTabs []string // Web Store pages of the extensions to install
-	if firstOpen {
+	if firstOpen && !noCDP {
 		for _, eid := range p.Extensions {
 			extraTabs = append(extraTabs, webStoreURL(eid))
 		}
@@ -369,7 +379,7 @@ func (m *Manager) open(id string, force, noCDP bool) error {
 
 	cmd := exec.Command(chrome, args...)
 	cmd.Dir = filepath.Dir(chrome)
-	log.Printf("mở %s (%s) sync=%v restore=%v login-mode=%v chrome=%s", id, p.Name, syncOn, restore != nil, noCDP, chrome)
+	log.Printf("mở %s (%s) sync=%v restore=%v login-mode=%v no-proxy=%v chrome=%s", id, p.Name, syncOn, restore != nil, noCDP, noProxy && p.Proxy.Enabled(), chrome)
 	if err := cmd.Start(); err != nil {
 		if fwd != nil {
 			fwd.Close()

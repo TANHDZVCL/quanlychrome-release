@@ -208,14 +208,14 @@ function checkHTML(id) {
 }
 
 // ---------- actions ----------
-async function openProfiles(ids, force = false, login = false) {
+async function openProfiles(ids, force = false, login = false, noProxy = false) {
   ids = ids.filter((id) => byId(id) && !byId(id).running);
   if (!ids.length) return;
   ids.forEach((id) => busy.add(id));
   render();
   let locked = {};
   try {
-    const r = await api("POST", "/api/open", { ids, force, login });
+    const r = await api("POST", "/api/open", { ids, force, login, noProxy });
     if (login && !Object.keys(r.errors || {}).length && !Object.keys(r.locked || {}).length)
       toast("Đã mở ở chế độ đăng nhập Google. Đăng nhập xong hãy ĐÓNG cửa sổ Chrome, rồi mở lại bình thường để dùng.");
     reportErrors(r.errors);
@@ -231,7 +231,7 @@ async function openProfiles(ids, force = false, login = false) {
         "\n\nMở cùng lúc ở hai máy có thể làm mất đăng nhập hoặc bị Facebook/Google bắt xác minh. Chỉ mở nếu chắc chắn máy kia đã ngừng dùng.",
       "Vẫn mở",
     );
-    if (ok) openProfiles(lockedIds, true, login);
+    if (ok) openProfiles(lockedIds, true, login, noProxy);
   }
 }
 
@@ -268,6 +268,19 @@ async function checkProfiles(ids) {
     }
   };
   await Promise.all(Array.from({ length: Math.min(5, ids.length) }, worker));
+}
+
+function openGLogin(id) {
+  const p = byId(id);
+  if (!p) return;
+  const hasProxy = !!(p.proxy && p.proxy.type && p.proxy.host);
+  $("#glName").textContent = p.name;
+  $("#glProxyRow").hidden = !hasProxy;
+  $("#glNoProxy").checked = false;
+  const d = $("#dlgGLogin");
+  d.returnValue = "";
+  d.onclose = () => { if (d.returnValue === "yes") openProfiles([id], false, true, hasProxy && $("#glNoProxy").checked); };
+  d.showModal();
 }
 
 function confirmBox(title, text, yesLabel = "Đồng ý") {
@@ -840,7 +853,7 @@ $("#rows").addEventListener("click", (e) => {
   switch (el.dataset.act) {
     case "sel": el.checked ? selected.add(id) : selected.delete(id); render(); break;
     case "open": openProfiles([id]); break;
-    case "glogin": openProfiles([id], false, true); break;
+    case "glogin": openGLogin(id); break;
     case "close": closeProfiles([id]); break;
     case "edit": openProfileDialog(id); break;
     case "check": checkProfiles([id]); break;
