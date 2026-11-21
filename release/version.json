@@ -1,1 +1,1 @@
-{"version": "3.7", "sha256": "c02da45c5322a1223120c0202b7e4277e22ee4881d56a2e4437bfd705f6e13d4", "notes": "Trung tâm Zalo: bớt trễ khi gõ, hình nét hơn, nút Phóng to 1 Zalo, sửa lỗi điện thoại bấm/gõ ngay khi mở trang bị mất", "file": "ChromeManager.exe"}
+{"version": "3.8", "sha256": "904724c6cd128fc5e03cea7e9411893514cc38aefa859eb4ff25de69b877d97a", "notes": "Nút G: mở hồ sơ để đăng nhập Google (khi Google báo trình duyệt không an toàn)", "file": "ChromeManager.exe"}

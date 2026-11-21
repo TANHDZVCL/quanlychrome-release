@@ -459,7 +459,7 @@ func (a *HubAgent) tickLoop() {
 		}
 		st := a.settings()
 		for _, id := range st.Profiles {
-			running := a.mgr.IsRunning(id)
+			running := a.mgr.IsRunning(id) && a.mgr.HasControl(id)
 			if !running {
 				a.mu.Lock()
 				delete(a.pending, id)

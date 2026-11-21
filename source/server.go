@@ -28,7 +28,8 @@ type Server struct {
 
 type profileView struct {
 	Profile
-	Running bool `json:"running"`
+	Running   bool `json:"running"`
+	LoginMode bool `json:"loginMode,omitempty"`
 }
 
 func (s *Server) Handler() http.Handler {
@@ -102,7 +103,8 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 	ps := s.store.Profiles()
 	views := make([]profileView, len(ps))
 	for i, p := range ps {
-		views[i] = profileView{Profile: p, Running: s.mgr.IsRunning(p.ID)}
+		run := s.mgr.IsRunning(p.ID)
+		views[i] = profileView{Profile: p, Running: run, LoginMode: run && !s.mgr.HasControl(p.ID)}
 	}
 	writeJSON(w, map[string]any{
 		"profiles":   views,
@@ -294,6 +296,7 @@ func (s *Server) open(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		IDs   []string `json:"ids"`
 		Force bool     `json:"force"`
+		Login bool     `json:"login"` // without the control port, to sign in to Google
 	}
 	if err := readJSON(r, &in); err != nil || len(in.IDs) == 0 {
 		writeErr(w, 400, "Chưa chọn hồ sơ")
@@ -305,7 +308,11 @@ func (s *Server) open(w http.ResponseWriter, r *http.Request) {
 		if i > 0 {
 			time.Sleep(400 * time.Millisecond) // don't start many Chromes at the same instant
 		}
-		if err := s.mgr.Open(id, in.Force); err != nil {
+		open := s.mgr.Open
+		if in.Login {
+			open = s.mgr.OpenForLogin
+		}
+		if err := open(id, in.Force); err != nil {
 			var le *LockedError
 			if errors.As(err, &le) {
 				locked[id] = err.Error()

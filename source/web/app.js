@@ -173,12 +173,13 @@ function rowHTML(p) {
   const away = sy.locks && sy.locks[p.id];
   const cloud = sy.cloud && sy.cloud[p.id];
   let statusHTML = `<span class="status ${p.running ? "on" : "off"}"><span class="dot"></span>${p.running ? "Đang mở" : "Đã đóng"}</span>`;
+  if (p.loginMode) statusHTML += `<div class="also" title="Mở không có cổng điều khiển: đăng nhập Google xong hãy đóng cửa sổ Chrome rồi mở lại bình thường">Chế độ đăng nhập Google</div>`;
   if (!p.running && away) statusHTML = `<span class="status away" title="Từ ${esc(new Date(away.since).toLocaleString("vi-VN"))}"><span class="dot"></span>Mở ở máy ${esc(away.deviceName || "khác")}</span>`;
   else if (p.running && away) statusHTML += `<div class="also">Cũng đang mở ở máy ${esc(away.deviceName || "khác")}</div>`;
   const cloudHTML = cloud ? `<span class="cloud" title="Đăng nhập web đã lưu online lúc ${esc(new Date(cloud.updatedAt).toLocaleString("vi-VN"))}">${ICON.cloud}</span>` : "";
   const toggle = p.running
     ? `<button class="btn sm" data-act="close" ${isBusy ? "disabled" : ""}>${ICON.stop}Đóng</button>`
-    : `<button class="btn sm success" data-act="open" ${isBusy ? "disabled" : ""}>${ICON.play}Mở</button>`;
+    : `<button class="btn sm success" data-act="open" ${isBusy ? "disabled" : ""}>${ICON.play}Mở</button><button class="iconbtn gbtn" data-act="glogin" ${isBusy ? "disabled" : ""} title="Mở để đăng nhập Google (dùng khi Google báo &quot;Trình duyệt không an toàn&quot;)">G</button>`;
   return `<tr data-id="${p.id}" class="${sel ? "sel" : ""}">
     <td class="c-check"><input type="checkbox" data-act="sel" ${sel ? "checked" : ""}></td>
     <td><div class="pname"><span class="pin ${p.pinned ? "on" : ""}" data-act="pin" title="${p.pinned ? "Bỏ ghim" : "Ghim lên đầu"}">${p.pinned ? "★" : "☆"}</span>${esc(p.name)}${cloudHTML}${p.extensions && p.extensions.length ? `<span class="extcount" title="${p.extensions.length} tiện ích">🧩${p.extensions.length}</span>` : ""}</div>${p.notes ? `<div class="pnote" title="${esc(p.notes)}">${esc(p.notes)}</div>` : ""}</td>
@@ -207,14 +208,16 @@ function checkHTML(id) {
 }
 
 // ---------- actions ----------
-async function openProfiles(ids, force = false) {
+async function openProfiles(ids, force = false, login = false) {
   ids = ids.filter((id) => byId(id) && !byId(id).running);
   if (!ids.length) return;
   ids.forEach((id) => busy.add(id));
   render();
   let locked = {};
   try {
-    const r = await api("POST", "/api/open", { ids, force });
+    const r = await api("POST", "/api/open", { ids, force, login });
+    if (login && !Object.keys(r.errors || {}).length && !Object.keys(r.locked || {}).length)
+      toast("Đã mở ở chế độ đăng nhập Google. Đăng nhập xong hãy ĐÓNG cửa sổ Chrome, rồi mở lại bình thường để dùng.");
     reportErrors(r.errors);
     locked = r.locked || {};
   } catch (e) { toast(e.message, "err"); }
@@ -228,7 +231,7 @@ async function openProfiles(ids, force = false) {
         "\n\nMở cùng lúc ở hai máy có thể làm mất đăng nhập hoặc bị Facebook/Google bắt xác minh. Chỉ mở nếu chắc chắn máy kia đã ngừng dùng.",
       "Vẫn mở",
     );
-    if (ok) openProfiles(lockedIds, true);
+    if (ok) openProfiles(lockedIds, true, login);
   }
 }
 
@@ -837,6 +840,7 @@ $("#rows").addEventListener("click", (e) => {
   switch (el.dataset.act) {
     case "sel": el.checked ? selected.add(id) : selected.delete(id); render(); break;
     case "open": openProfiles([id]); break;
+    case "glogin": openProfiles([id], false, true); break;
     case "close": closeProfiles([id]); break;
     case "edit": openProfileDialog(id); break;
     case "check": checkProfiles([id]); break;

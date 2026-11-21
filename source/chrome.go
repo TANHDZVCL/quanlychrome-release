@@ -21,6 +21,7 @@ type running struct {
 	cmd       *exec.Cmd
 	fwd       *Forwarder
 	firstOpen bool // first time this profile runs on this computer
+	noCDP     bool // opened without the control port (to sign in to Google)
 }
 
 // Manager launches and closes Chrome, one separate user-data-dir per profile.
@@ -143,7 +144,7 @@ func (m *Manager) watch() {
 				ended = append(ended, id)
 				continue
 			}
-			if time.Since(m.lastCapture[id]) >= captureEvery && !m.capturing[id] && !m.closing[id] {
+			if time.Since(m.lastCapture[id]) >= captureEvery && !m.capturing[id] && !m.closing[id] && !r.noCDP {
 				due = append(due, id)
 			}
 		}
@@ -215,7 +216,22 @@ func normURL(u string) string {
 
 // Open launches Chrome for a profile. With sync on, it first takes the
 // profile's lock and restores cookies saved by another computer.
-func (m *Manager) Open(id string, force bool) error {
+func (m *Manager) Open(id string, force bool) error { return m.open(id, force, false) }
+
+// OpenForLogin launches Chrome without the control port: Google refuses to
+// sign in ("this browser may not be secure") while it is on. Logins are
+// still saved after the window is closed.
+func (m *Manager) OpenForLogin(id string, force bool) error { return m.open(id, force, true) }
+
+// HasControl reports whether the app can talk to this profile's Chrome.
+func (m *Manager) HasControl(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r, ok := m.run[id]
+	return !ok || !r.noCDP
+}
+
+func (m *Manager) open(id string, force, noCDP bool) error {
 	p, ok := m.store.Get(id)
 	if !ok {
 		return errors.New("không tìm thấy hồ sơ")
@@ -269,6 +285,10 @@ func (m *Manager) Open(id string, force bool) error {
 			m.sync.MarkRestored(id, restoreVer, restore)
 			restore = nil
 		}
+		if noCDP && restore != nil {
+			m.sync.ReleaseLock(id)
+			return errors.New("hồ sơ có đăng nhập mới từ máy khác: hãy bấm Mở bình thường 1 lần rồi đóng lại, sau đó mới dùng \"Mở để đăng nhập Google\"")
+		}
 		if doms := siteDomains(p.SiteDomains); len(doms) > 0 {
 			if pack, v, err := m.sync.SiteToRestore(id); err != nil {
 				log.Printf("site restore %s: %v", id, err)
@@ -295,7 +315,7 @@ func (m *Manager) Open(id string, force bool) error {
 		"--enable-logging", // writes chrome_debug.log in the profile folder (for diagnosing)
 	}
 	args = append(args, langArgs(m.store.Settings().ChromeLang)...)
-	if hs := m.store.Settings().Hub; hs.Enabled {
+	if hs := m.store.Settings().Hub; hs.Enabled && !noCDP {
 		for _, hid := range hs.Profiles {
 			if hid == id {
 				args = append(args, hubLaunchArgs()...)
@@ -306,9 +326,9 @@ func (m *Manager) Open(id string, force bool) error {
 	if mb := cacheLimitMB(m.store.Settings().CacheMB); mb > 0 {
 		args = append(args, fmt.Sprintf("--disk-cache-size=%d", mb<<20))
 	}
-	{
+	_ = os.Remove(devToolsPortFile(dir))
+	if !noCDP {
 		// Local-only control port: saving/restoring logins, arranging windows.
-		_ = os.Remove(devToolsPortFile(dir))
 		args = append(args, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1")
 	}
 	if err := setWebRTCPolicy(dir, p.Proxy.Enabled()); err != nil {
@@ -349,7 +369,7 @@ func (m *Manager) Open(id string, force bool) error {
 
 	cmd := exec.Command(chrome, args...)
 	cmd.Dir = filepath.Dir(chrome)
-	log.Printf("mở %s (%s) sync=%v restore=%v chrome=%s", id, p.Name, syncOn, restore != nil, chrome)
+	log.Printf("mở %s (%s) sync=%v restore=%v login-mode=%v chrome=%s", id, p.Name, syncOn, restore != nil, noCDP, chrome)
 	if err := cmd.Start(); err != nil {
 		if fwd != nil {
 			fwd.Close()
@@ -357,7 +377,7 @@ func (m *Manager) Open(id string, force bool) error {
 		m.sync.ReleaseLock(id)
 		return fmt.Errorf("không mở được Chrome: %w", err)
 	}
-	r := &running{cmd: cmd, fwd: fwd, firstOpen: firstOpen}
+	r := &running{cmd: cmd, fwd: fwd, firstOpen: firstOpen, noCDP: noCDP}
 	m.mu.Lock()
 	m.run[id] = r
 	m.lastCapture[id] = time.Now().Add(-captureEvery + time.Minute) // first save after 1 minute
@@ -411,8 +431,8 @@ func (m *Manager) Open(id string, force bool) error {
 			fwd.Close()
 		}
 		m.saveSiteData(id)
-		if !byApp {
-			m.saveAfterExit(id) // closed with the window's X: save now
+		if !byApp || r.noCDP {
+			m.saveAfterExit(id) // closed with the window's X (or no control port): save now
 		}
 		m.sync.ReleaseLock(id)
 	}()
@@ -501,7 +521,7 @@ func (m *Manager) Close(id string) error {
 			m.mu.Unlock()
 		}()
 		dir := m.store.ProfileDir(id)
-		if m.sync.Enabled() {
+		if m.sync.Enabled() && (r == nil || !r.noCDP) {
 			if err := m.Capture(id); err != nil {
 				log.Printf("capture %s before close: %v", id, err)
 			}
